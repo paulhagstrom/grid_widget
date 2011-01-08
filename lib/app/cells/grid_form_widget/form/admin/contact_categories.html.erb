@@ -1,0 +1,36 @@
+<table class="edit_table">
+	<tr>
+		<td>
+			<table class="data_table">
+				<tr>
+					<td>Name</td>
+					<td><%= text_field_tag 'record[name]', @record.name %></td>
+				</tr>
+				<tr>
+					<td>Help</td>
+					<td><%= text_field_tag 'record[help]', @record.help %></td>
+				</tr>
+				<tr>
+					<td>Position</td>
+					<td><%= text_field_tag 'record[position]', @record.position %></td>
+				</tr>
+			</table>
+		</td>
+		<td>
+			<table class="data_table">
+				<tr>
+					<td>URL?</td>
+					<td><%= hidden_field_tag 'record[url]', '0' %><%= check_box_tag 'record[url]', '1', @record.url %></td>
+				</tr>
+				<tr>
+					<td>Email?</td>
+					<td><%= hidden_field_tag 'record[email]', '0' %><%= check_box_tag 'record[email]', '1', @record.email %></td>
+				</tr>
+				<tr>
+					<td>Visible?</td>
+					<td><%= hidden_field_tag 'record[visible]', '0' %><%= check_box_tag 'record[visible]', '1', @record.visible %></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>

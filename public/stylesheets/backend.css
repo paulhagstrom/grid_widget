@@ -1,0 +1,128 @@
+/* css styles for the backend data */
+
+.page_identifier {
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+	padding:3px;
+	background-color:#CCCCFF;
+}
+
+table.layout_table {
+	width:100%;
+}
+table.layout_table td {
+	vertical-align:top;
+}
+
+table.filter_table {
+	width:100%;
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+}
+table.filter_table td {
+	vertical-align:top;
+	text-align:center;
+}
+p.filter_label {
+	width:100%;
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+	margin:0px;
+	padding:0px;
+	background-color: #CCCCCC;
+	color:#880000;
+	text-align:center;
+}
+
+.filter {
+	cursor:pointer;
+}
+td.filter_on {
+	background-color:#008800;
+	color:#00FF00;
+}
+td.filter_off {
+	background-color:#EE8888;
+	color:#000000;
+}
+td.filter_onf {
+	background-color:#AA8800;
+	color:#FFFF00;
+}
+td.filter_empty {
+	cursor:auto;
+/*	background-color:#FFDDFF;*/
+}
+.filter_hover.filter_off {
+	background-color:#CCAA44;
+	color:#000000;
+}
+.filter_hover.filter_on {
+	background-color:#AA8800;
+	color:#00FF00;
+}
+.filter_hover.filter_onf {
+	background-color:#88AA00;
+	color:#FFFF00;
+}
+
+.filter_table a, a:visited, a:link {
+	display:block;
+	text-decoration:none;
+}
+.filter_table a:hover {
+	background-color:yellow;
+}
+
+/* data_table stuff is probably obsolete with jqgrid */
+table.data_table {
+	width:100%;
+}
+table.data_table td {
+	vertical-align:top;
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+}
+table.data_table th {
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+	text-align:left;
+	font-weight:bold;
+}
+
+div.popup_form {
+	background-color:#DDDDFF;
+	padding:5px;
+}
+
+.column_opens_panel {
+	border-top:thin yellow solid;
+	cursor:pointer;
+	/* background-color:#FFFFEE; */
+}
+.column_inplace_edit {
+	border-top:thin red solid;
+	cursor:crosshair;
+}
+
+
+table.edit_table td {
+	vertical-align:top;
+}
+
+.nav ul {
+	padding:3px 3px 3px 3px;
+	margin:5px 0px 5px 0px;
+	background-color:#FFDDDD;
+}
+.nav li {
+	list-style-type:none;
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+}
+.nav a, a:visited {
+	display:block;
+}
+.nav a:hover {
+	background-color:yellow;
+}

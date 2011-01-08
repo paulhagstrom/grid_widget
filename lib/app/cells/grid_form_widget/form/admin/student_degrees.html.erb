@@ -1,0 +1,64 @@
+<table class="edit_table">
+	<tr>
+		<td>
+			<table class="data_table">
+				<tr>
+					<td>Student</td>
+					<td><%= select_tag 'record[student_id]', options_for_select([['(None)','0']] + (Student.includes(:person).all.map {|s| [s.person.full_name, s.id]}), @record.student_id) %></td>
+				</tr>
+				<tr>
+					<td>Degree</td>
+					<td><%= select_tag 'record[degree_id]', options_for_select([['(None)','0']], @record.degree_id) + options_from_collection_for_select(Degree.all, 'id', 'name', @record.degree_id) %></td>
+				</tr>
+				<tr>
+					<td>Advisor</td>
+					<td><%= select_tag 'record[advisor_id]', options_for_select([['(None)','0']], @record.advisor_id) + options_from_collection_for_select(Person.all, 'id', 'full_name', @record.advisor_id) %></td>
+				</tr>
+				<tr>
+					<td>Switch?</td>
+					<td><%= hidden_field_tag 'record[request_switch]', '0' %><%= check_box_tag 'record[request_switch]', '1', @record.request_switch %></td>
+				</tr>
+				<tr>
+					<td>Temp?</td>
+					<td><%= hidden_field_tag 'record[request_temporary]', '0' %><%= check_box_tag 'record[request_temporary]', '1', @record.request_temporary %></td>
+				</tr>
+			</table>
+		</td>
+		<td>
+			<table class="data_table">
+				<tr>
+					<td>Advisor belief</td>
+					<td><%= select_tag 'record[advisor_belief_id]', options_for_select([['(None)','0']], @record.advisor_belief_id) + options_from_collection_for_select(Person.all, 'id', 'full_name', @record.advisor_belief_id) %></td>
+				</tr>
+				<tr>
+					<td>First choice</td>
+					<td><%= select_tag 'record[first_choice_id]', options_for_select([['(None)','0']], @record.first_choice_id) + options_from_collection_for_select(Person.all, 'id', 'full_name', @record.first_choice_id) %></td>
+				</tr>
+				<tr>
+					<td>Second choice</td>
+					<td><%= select_tag 'record[second_choice_id]', options_for_select([['(None)','0']], @record.second_choice_id) + options_from_collection_for_select(Person.all, 'id', 'full_name', @record.second_choice_id) %></td>
+				</tr>
+				<tr>
+					<td>Third choice</td>
+					<td><%= select_tag 'record[third_choice_id]', options_for_select([['(None)','0']], @record.third_choice_id) + options_from_collection_for_select(Person.all, 'id', 'full_name', @record.third_choice_id) %></td>
+				</tr>
+			</table>
+		</td>
+		<td>
+			<table class="data_table">
+				<tr>
+					<td>Verified?</td>
+					<td><%= hidden_field_tag 'record[verified]', '0' %><%= check_box_tag 'record[verified]', '1', @record.verified %></td>
+				</tr>
+				<tr>
+					<td>Considerations</td>
+					<td><%= text_area_tag 'record[considerations]', @record.considerations %></td>
+				</tr>
+				<tr>
+					<td>Comments</td>
+					<td><%= text_area_tag 'record[comments]', @record.comments %></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>

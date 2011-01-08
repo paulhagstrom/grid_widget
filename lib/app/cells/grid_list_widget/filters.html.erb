@@ -1,0 +1,21 @@
+<% @parent.filter_sequence.each do |filter_group| %>
+	<% f = @parent.filters[filter_group] %>
+	<p class="filter_label"><%= f[:options][:name] %></p>
+	<table class="filter_table">
+		<tr>
+		<% col = 0 %>
+		<% col_max = f[:options][:columns] || 6 %>
+		<% f[:sequence].each do |sf| %>
+			<% if (col += 1) > col_max %>
+				</tr>
+				<tr>
+				<% col = 1 %>
+			<% end %>
+			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @parent.name %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
+		<% end %>
+		<% while (col += 1) <= col_max %>
+			<td class="filter_empty">&nbsp;</td>
+		<% end %>
+		</tr>
+	</table>
+<% end %>

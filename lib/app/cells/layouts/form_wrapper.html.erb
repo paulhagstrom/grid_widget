@@ -1,0 +1,7 @@
+<%= form_tag rurl_for_event(:formSubmit), :remote => true do %>
+<%= hidden_field_tag 'id', @record.id %>
+<%= yield %>
+<%= hidden_field_tag 'form_action', '', :id => @container + '_form_button' %>
+<%= submit_tag 'Update', :onclick => "$('##{@container + '_form_button'}').val('submit');" %>
+<%= submit_tag 'Cancel', :onclick => "$('##{@container + '_form_button'}').val('cancel');" %>
+<% end %>

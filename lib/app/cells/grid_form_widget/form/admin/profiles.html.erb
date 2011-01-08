@@ -1,0 +1,18 @@
+<table class="edit_table">
+	<tr>
+		<td>Person</td>
+		<td><%= select_tag 'record[person_id]', options_from_collection_for_select(Person.all, 'id', 'full_name', @record.person_id) %></td>
+		<td>Title</td>
+		<td><%= text_field_tag 'record[title]', @record.title %></td>
+	</tr>
+</table>
+<table class="edit_table">
+<tr>
+	<td>Background</td>
+	<td><%= text_area_tag 'record[background]', @record.background %></td>
+</tr>
+<tr>
+	<td>Research</td>
+	<td><%= text_area_tag 'record[research]', @record.research %></td>
+</tr>
+</table>
