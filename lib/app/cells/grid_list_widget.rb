@@ -61,7 +61,7 @@ class GridListWidget < Apotomo::Widget
     if filters = get_filter_parameters
       filters.each do |group,filter_ids|
         fg_options = @parent.filters[group][:options]
-        q = q.where(fg_options[:where].call(filter_ids)) if fg_options.has_key?(:where)
+        q = q.where(fg_options[:where].call(filter_ids)) if fg_options.has_key?(:where) && filter_ids
         q = q.joins(fg_options[:joins]) if fg_options.has_key?(:joins)
         filter_ids.each do |f|
           f_options = @parent.filters[group][:filters][f]
