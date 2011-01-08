@@ -1,16 +1,20 @@
 class GridListWidget < Apotomo::Widget
   include GridWidget::Controller
   helper GridWidget::Helper
-    
-  responds_to_event :fetchData, :with => :send_json
-  responds_to_event :cellClick, :with => :cell_click
+  
+  # This seemed to get caught up in a cache somewhere, so I moved this into
+  # the after_add block.
+  # responds_to_event :fetchData, :with => :send_json
+  # responds_to_event :cellClick, :with => :cell_click
   
   after_add do |me, parent|
-    me.parent.respond_to_event :recordUpdated, :with => :redisplay, :on => me.name
-    me.parent.respond_to_event :filterSelected, :with => :set_filter, :on => me.name
+    me.respond_to_event :fetchData, :with => :send_json, :on => me.name
+    me.respond_to_event :cellClick, :with => :cell_click, :on => me.name
+    parent.respond_to_event :recordUpdated, :with => :redisplay, :on => me.name
+    parent.respond_to_event :filterSelected, :with => :set_filter, :on => me.name
     @parent = parent
     @resource = parent.resource
-    @container = parent.name
+    @container = parent.name    
   end
     
   # This needs to be updated so that it can do pagination and live search

@@ -6,11 +6,11 @@ class GridFormWidget < Apotomo::Widget
 
   after_add do |me, parent|
     # record selected on the list will bubble to parent and trigger record_selected here
-    me.parent.respond_to_event :recordSelected, :with => :reveal_form, :on => me.name
-    me.parent.respond_to_event :editRecord, :with => :edit_record, :on => me.name
-    me.parent.respond_to_event :formSubmit, :with => :form_submitted, :on => me.name
-    me.parent.respond_to_event :deleteRecord, :with => :delete_record, :on => me.name
-    # I was under the impression apotomo set this form me, but yet I couldn't find it.
+    parent.respond_to_event :recordSelected, :with => :reveal_form, :on => me.name
+    parent.respond_to_event :editRecord, :with => :edit_record, :on => me.name
+    parent.respond_to_event :formSubmit, :with => :form_submitted, :on => me.name
+    parent.respond_to_event :deleteRecord, :with => :delete_record, :on => me.name
+    # I was under the impression apotomo set this for me, but yet I couldn't find it.
     @parent = parent
     @resource = parent.resource
     @container = parent.name
