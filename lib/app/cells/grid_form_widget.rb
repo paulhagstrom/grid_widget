@@ -2,7 +2,9 @@
 
 class GridFormWidget < Apotomo::Widget
   include GridWidget::Controller
+  include AppSupport::Controller
   helper GridWidget::Helper
+  helper AppSupport::Helper
 
   after_add do |me, parent|
     # record selected on the list will bubble to parent and trigger record_selected here

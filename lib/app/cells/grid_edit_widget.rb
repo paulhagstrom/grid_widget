@@ -50,6 +50,7 @@
 # * :custom_abbrev (for long strings, cuts it off at 20 characters and provides ellipses)
 class GridEditWidget < Apotomo::Widget
   include GridWidget::Controller
+  include AppSupport::Controller
 
   after_initialize :setup
   

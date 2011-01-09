@@ -59,7 +59,7 @@ module GridWidget
       end
       javascript_tag wiring
     end
-       
+    
   end
   
   require 'app/cells/grid_edit_widget'
