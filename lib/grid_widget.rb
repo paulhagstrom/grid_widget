@@ -34,7 +34,7 @@ module GridWidget
     # I seem to have to do this to get url_for_event working well under a relative path.
     # I probably shouldn't have to
     def rurl_for_event(type, options = {})
-      options[:controller] = (ENV['RAILS_RELATIVE_URL_ROOT'] ? ENV['RAILS_RELATIVE_URL_ROOT'] + '/' : '') + params[:controller]
+      # options[:controller] = (ENV['RAILS_RELATIVE_URL_ROOT'] ? ENV['RAILS_RELATIVE_URL_ROOT'] + '/' : '') + params[:controller]
       url_for_event(type, options)
     end
 
