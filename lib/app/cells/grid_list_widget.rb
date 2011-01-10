@@ -156,7 +156,7 @@ class GridListWidget < Apotomo::Widget
     
     # limits (in case we are, e.g., dependent)
     # TODO: make this work
-    # q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
+    q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
 
     # I should do more error checking here I think.
     # TODO: Make this work.
@@ -196,7 +196,7 @@ class GridListWidget < Apotomo::Widget
   # TODO: Make the pid thing work
   def get_filter_parameters
     return_filters = {}
-    # @parent_record = param(:pid)
+    @parent_record = param(:pid)
     if param(:filters)
       # split the HTTP parameter
       filters = []

@@ -29,8 +29,9 @@ module JqgridSupport
     end
     
     # Redraw the grid (re-request the dataset)
-    def grid_reload
-      "$('##{@parent.dom_id + '_grid'}').trigger('reloadGrid');"
+    def grid_reload(domid = nil)
+      domid ||= @parent.dom_id
+      "$('##{domid}_grid').trigger('reloadGrid');"
     end
     
     # grid_set_post_params stores the passed hash in jqGrid's postData hash.  This is information

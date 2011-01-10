@@ -97,7 +97,7 @@ class GridEditWidget < Apotomo::Widget
     clone_form = <<-JS
     $('##{form}').clone().hide().css('background-color','#DDDDFF').attr('id','new_#{form}').insertAfter('##{form}');
     $('##{form}').attr('id', 'ex_#{form}');
-    $('#ex_#{form} .ui-jqgrid').remove();
+    $('#ex_#{form} .ui-jqgrid.ui-widget').remove();
     $('#new_#{form}').attr('id', '#{form}');
     JS
     # slide in the new one and slide out and destroy the old one
@@ -112,24 +112,27 @@ class GridEditWidget < Apotomo::Widget
   def display_form
     @record = fetch_record
     # TODO: Is parentSelection redundant?  Can't I just watch for :recordSelected?
-    # trigger :parentSelection, :pid => @record.id
     # TODO: Try to pass fewer locals
-    update :selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
-      {:container => @dom_id + '_form', :resource => @resource, :record => @record}
+    # trigger :parentSelection, :pid => @record.id
+    # TODO: YOU ARE HERE -- This doesn't work.  The set parameters doesn't seem to reach the grid in time.
+    # If I explicitly reload the grid, it then works.  So, it's all about getting the data into the postData
+    # at the right time.  And it may be that the right time is just as the grid is wired.  
+    js_extra = @imadaddy ? grid_set_post_params(@imadaddy, 'pid' => param(:id)) + grid_reload(@imadaddy) : ''
+    update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+      {:container => @dom_id + '_form', :resource => @resource, :record => @record}) + ';' + js_extra
   end
 
   # TODO: Make this work.
-  # # parent_selection handles the :parentSelected event that a form widget posts when a record is
-  # # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
-  # # form widget.
-  # #
-  # # Because this is being written stateless, we need to dispatch the new information to the grid,
-  # # so that when it calls to reload its dataset it supplies the right parameters.
-  # def parent_selection
-  #   # @parent_record = @parent.record
-  #   # trigger :recordUpdated
-  #   render :text => grid_set_post_params(self.name, 'pid' => param(:pid)) + grid_reload + "/*parent_selection*/"
-  # end
+  # parent_selection handles the :parentSelected event that a form widget posts when a record is
+  # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
+  # form widget.
+  #
+  # Because this is being written stateless, we need to dispatch the new information to the grid,
+  # so that when it calls to reload its dataset it supplies the right parameters.
+  def parent_selection
+    render :nothing => true
+    # render :text => grid_set_post_params(self.name, 'pid' => param(:id)) + grid_reload(self.name) + "/*parent_selection*/"
+  end
   
   # The form is looking for things in a (@dom_id + '_form') array, which will by default be self.name (resource_widget)
   def form_submitted
@@ -300,6 +303,8 @@ class GridEditWidget < Apotomo::Widget
   def embed_widget(where, widget)
     self << widget
     widget.where = where
+    @imadaddy = widget.name
+    # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
     # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
   end
   
