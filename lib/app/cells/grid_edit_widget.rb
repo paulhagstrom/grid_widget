@@ -92,10 +92,12 @@ class GridEditWidget < Apotomo::Widget
   def reveal_form
     # Make a new form div so we can slide away the old one and swap ids
     # (This all relies on the id of the form corresponding to an enclosing div, incidentally)
+    # Forcibly remove any jqgrids still there or there will be a problem loading the new one
     form = @dom_id + '_form'
     clone_form = <<-JS
     $('##{form}').clone().hide().css('background-color','#DDDDFF').attr('id','new_#{form}').insertAfter('##{form}');
     $('##{form}').attr('id', 'ex_#{form}');
+    $('#ex_#{form} .ui-jqgrid').remove();
     $('#new_#{form}').attr('id', '#{form}');
     JS
     # slide in the new one and slide out and destroy the old one
