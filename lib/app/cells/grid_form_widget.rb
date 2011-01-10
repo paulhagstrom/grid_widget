@@ -6,12 +6,20 @@ class GridFormWidget < Apotomo::Widget
   helper GridWidget::Helper
   helper AppSupport::Helper
 
+  attr_accessor :record
+  
   after_add do |me, parent|
+    list_widget = parent.name + '_list'
     # record selected on the list will bubble to parent and trigger record_selected here
-    parent.respond_to_event :recordSelected, :with => :reveal_form, :on => me.name
-    parent.respond_to_event :editRecord, :with => :edit_record, :on => me.name
-    parent.respond_to_event :formSubmit, :with => :form_submitted, :on => me.name
-    parent.respond_to_event :deleteRecord, :with => :delete_record, :on => me.name
+    puts "me name " + me.name
+    puts "parent name " + parent.name
+    puts "guessed list_widget name " + list_widget
+    
+    parent.respond_to_event :recordSelected, :from => list_widget, :with => :reveal_form, :on => me.name
+    parent.respond_to_event :editRecord, :from => list_widget, :with => :edit_record, :on => me.name
+    parent.respond_to_event :deleteRecord, :from => list_widget, :with => :delete_record, :on => me.name
+    # form submission here
+    parent.respond_to_event :formSubmit, :from => me.name, :with => :form_submitted, :on => me.name
     # I was under the impression apotomo set this for me, but yet I couldn't find it.
     @parent = parent
     @resource = parent.resource
@@ -19,8 +27,12 @@ class GridFormWidget < Apotomo::Widget
   end
   
   def display
-    fetch_record
-    update :view => 'form/' + @parent.form_template, :layout => 'form_wrapper'
+    @record = fetch_record
+    # Alert any grid_edit_widgets that might be attached as children that it is time to update.
+    trigger :parentSelection, :pid => @record.id
+    puts "FORM DISPLAY PARENT " + @parent.form_template
+    update :view => 'form/' + @parent.form_template, :layout => 'form_wrapper', :locals =>
+      {:container => @container, :resource => @resource, :record => record}
   end
   
   # catch the record selected event, originates from the list.
@@ -44,9 +56,11 @@ class GridFormWidget < Apotomo::Widget
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
     if param(:form_action) == 'submit'
-      fetch_record
-      @record.update_attributes(param(:record))
-      @record.save
+      record = fetch_record
+      record.update_attributes(param(@container))
+      record.save
+      # record_get.update_attributes(param(:record))
+      # record_get.save
       # Tell the list to redraw
       trigger :recordUpdated
       render :text => turn_and_deveal_form
@@ -63,8 +77,10 @@ class GridFormWidget < Apotomo::Widget
   end
 
   def delete_record
-    fetch_record
-    @record.destroy
+    if record = fetch_record
+      record.destroy
+    end
+    # record_get.destroy
     trigger :recordUpdated
     render :text => turn_and_deveal_form('#FF8888')
   end
@@ -75,13 +91,16 @@ class GridFormWidget < Apotomo::Widget
   def edit_record
     c = @parent.columns[param(:col).to_i]
     if c[:inplace_edit]
-      fetch_record
+      record = fetch_record
       if c[:toggle]
         f = c[:field]
-        v = @record.send(f)
-        @record.update_attributes({f => !v})
+        # v = record_get.send(f)
+        # record_get.update_attributes({f => !v})
+        v = record.send(f)
+        record.update_attributes({f => !v})
       end
-      @record.save
+      # record_get.save
+      record.save
       trigger :recordUpdated
       render :text => turn_and_deveal_form('#FF8888')
     else
@@ -90,13 +109,26 @@ class GridFormWidget < Apotomo::Widget
   end
   
   private
-  
+    
   def fetch_record
+    puts "FETCH RECORD " + @resource
     if param(:id).to_i > 0
-      @record = (Object.const_get @resource.classify).includes(@parent.includes).find(param(:id))
+    # if param("#{@container}_id").to_i > 0
+      # record_set (Object.const_get @resource.classify).includes(@parent.includes).find(param(:id))
+      # record = (Object.const_get @resource.classify).includes(@parent.includes).find(param("#{@container}_id"))
+      record = (Object.const_get @resource.classify).includes(@parent.includes).find(param(:id))
     else
-      @record = (Object.const_get @resource.classify).new
+      # record_set (Object.const_get @resource.classify).new
+      record = (Object.const_get @resource.classify).new
     end
   end
+  
+  # def record_get
+  #   instance_variable_get(("@{@resource}").to_sym)
+  # end
+  # 
+  # def record_set(val)
+  #   instance_variable_set(("@{@resource}").to_sym, val)
+  # end
   
 end

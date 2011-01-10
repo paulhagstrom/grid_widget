@@ -4,16 +4,26 @@ class GridListWidget < Apotomo::Widget
   helper GridWidget::Helper
   helper AppSupport::Helper
   
+  attr_accessor :parent_id
+  
   # This seemed to get caught up in a cache somewhere, so I moved this into
   # the after_add block.
   # responds_to_event :fetchData, :with => :send_json
   # responds_to_event :cellClick, :with => :cell_click
   
   after_add do |me, parent|
-    me.respond_to_event :fetchData, :with => :send_json, :on => me.name
-    me.respond_to_event :cellClick, :with => :cell_click, :on => me.name
-    parent.respond_to_event :recordUpdated, :with => :redisplay, :on => me.name
-    parent.respond_to_event :filterSelected, :with => :set_filter, :on => me.name
+    form_widget = parent.name + '_form'
+    puts "me name " + me.name
+    puts "parent name " + parent.name
+    puts "guessed form_widget name " + form_widget
+
+    me.respond_to_event :fetchData, :from => me.name, :with => :send_json, :on => me.name
+    me.respond_to_event :cellClick, :from => me.name, :with => :cell_click, :on => me.name
+    parent.respond_to_event :recordUpdated, :from => form_widget, :with => :redisplay, :on => me.name
+    # parent.respond_to_event :recordUpdated, :from => parent.name, :with => :redisplay, :on => me.name
+    parent.respond_to_event :filterSelected, :from => me.name, :with => :set_filter, :on => me.name
+    # parent.respond_to_event :recordUpdated, :with => :redisplay, :on => me.name
+    # parent.respond_to_event :filterSelected, :with => :set_filter, :on => me.name
     @parent = parent
     @resource = parent.resource
     @container = parent.name    
@@ -22,6 +32,10 @@ class GridListWidget < Apotomo::Widget
   # This needs to be updated so that it can do pagination and live search
   # TODO: Maybe allow custom sorts depending on the column selected -- to do common subordering.
   # TODO: Consider whether filters should specify ordering, or maybe default ordering
+  # YOU ARE HERE: The problem I am now having is a persistence problem.  I trigger the redraw, but
+  # by the time it calls load_records, we've lost track of what the parent record id is.  I need
+  # somehow to save that information in the load records call.  And the load records call comes
+  # from the jqGrid, so I'm kind of screwed.  Update jqGrid data and then refresh?
   def load_records
     q = (Object.const_get @resource.classify).scoped
 
@@ -72,6 +86,9 @@ class GridListWidget < Apotomo::Widget
         end
       end
     end
+    
+    # limits (in case we are, e.g., dependent)
+    q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
 
     # I should do more error checking here I think.
     if @parent.grid_options[:rows]
@@ -85,7 +102,8 @@ class GridListWidget < Apotomo::Widget
     end
     
     # get them
-    @records = q.all
+    # @records = q.all
+    return q.all
     
     # rows_per_page = @rows_per_page
     # if rows_per_page > 0
@@ -103,18 +121,20 @@ class GridListWidget < Apotomo::Widget
   end
   
   def display
-    load_records
-    @set_filters = self.set_filter
-    render
+    # records = load_records
+    # @set_filters = self.set_filter
+    # render :locals => {:records = records, :set_filters => self.set_filter}
+    render :locals => {:records => load_records, :set_filters => self.set_filter, :container => @container, :parent => @parent}
   end
   
   def redisplay
-    render :text => "$('##{@container + '_grid'}').trigger('reloadGrid');"
+    render :text => grid_reload + "/*redisplay*/"
   end
 
   def send_json
-    load_records
-    render :text => grid_json(@records).to_json
+    # load_records
+    # render :text => grid_json(@records).to_json
+    render :text => grid_json(load_records).to_json
   end
   
   def cell_click
@@ -126,15 +146,18 @@ class GridListWidget < Apotomo::Widget
   end
   
   def set_filter
-    # Turn off all the filters, then turn on the active ones
-    x = ''
+    # Build the Javascript that will highlight the active filters
+    # In the process, it also collects the string that will be stored 
+    # for the grid's data retrieval, and determines whether there are any groups that have
+    # no filters selected.
+    highlight_active = ''
     filter_parms = []
     groups_active = []
     if filters = get_filter_parameters
       filters.each do |group,filter_ids|
         filter_parm = group
         filter_ids.each do |filter_id|
-          x += <<-JS
+          highlight_active += <<-JS
           $('#filter_#{@parent.name}_#{group}_#{filter_id}').addClass('filter_on').removeClass('filter_off').removeClass('filter_onf');
           JS
           filter_parm += '-' + filter_id.to_s
@@ -143,6 +166,8 @@ class GridListWidget < Apotomo::Widget
         groups_active << group if filter_ids.size > 0
       end
     end
+    # Build the Javascript that will turn all the filters in a group to either: neutral if no filters are on,
+    # or off, in preparation for turning the active ones on.
     group_style = ''
     @parent.filter_sequence.each do |f|
       if groups_active.include?(f)
@@ -155,7 +180,8 @@ class GridListWidget < Apotomo::Widget
         JS
       end
     end
-    render :text => group_style + x + grid_set_filter_parms({'filters' => filter_parms.join('|')}) + self.redisplay
+    store_filters = grid_set_post_params(@parent.name, {'filters' => filter_parms.join('|')})
+    render :text => group_style + highlight_active + store_filters + grid_reload + "/*set_filter*/"
   end
   
   private 
@@ -164,8 +190,10 @@ class GridListWidget < Apotomo::Widget
   # filters = group1-val1-val2-val3|group2-vala-valb-valc|group1-val4
   # if a group repeats, the later values toggle existing, e.g., above group1 will have val4
   # if it had ended in group1-val2, then val2 would have been removed from group1
+  # This will also detect and set the parent_id (params(:pid)) if it is set.
   def get_filter_parameters
     return_filters = {}
+    @parent_record = param(:pid)
     if param(:filters)
       # split the HTTP parameter
       filters = []

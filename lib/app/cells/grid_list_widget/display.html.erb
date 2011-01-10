@@ -1,4 +1,6 @@
-<%= render :view => :filters %>
-<%= grid_place(@container + '_grid') %>
+<%= render :view => :filters, :locals => {:parent => parent} %>
+<%= grid_place(container + '_grid') %>
+<%#= grid_place(@container + '_grid') %>
 <%= wire_filters %>
-<%= javascript_tag @set_filters %>
+<%#= javascript_tag @set_filters %>
+<%= javascript_tag set_filters %>

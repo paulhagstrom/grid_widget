@@ -60,10 +60,26 @@ class GridEditWidget < Apotomo::Widget
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
+  attr_reader :list_widget
+  attr_reader :form_widget
   attr_accessor :form_template
+  attr_accessor :where
+  # attr_reader :parent_record
   
   def display
-    render
+    render :locals => {:container => @container}
+  end
+
+  # parent_selection handles the :parentSelected event that a form widget posts when a record is
+  # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
+  # form widget.
+  #
+  # Because this is being written stateless, we need to dispatch the new information to the grid,
+  # so that when it calls to reload its dataset it supplies the right parameters.
+  def parent_selection
+    # @parent_record = @parent.record
+    # trigger :recordUpdated
+    render :text => grid_set_post_params(self.name, 'pid' => param(:pid)) + grid_reload + "/*parent_selection*/"
   end
 
   # Add a column to the column model for the grid.  This will include things like the label and field, any
@@ -170,6 +186,12 @@ class GridEditWidget < Apotomo::Widget
     value ? '<span class="ui-icon ui-icon-check"></span>' : ''
   end
   
+  def embed_widget(where, widget)
+    @form_widget << widget
+    widget.where = where
+    @form_widget.respond_to_event :parentSelection, :from => @form_widget.name, :with => :parent_selection, :on => widget.name
+  end
+  
   private
   
   def setup(*)
@@ -189,8 +211,8 @@ class GridEditWidget < Apotomo::Widget
     @form_template = params[:controller]
     
     # create the list and form widgets
-    self << lw = widget(:grid_list_widget, @container + '_list', :display)
-    self << fw = widget(:grid_form_widget, @container + '_form', :display)
+    self << @list_widget = widget(:grid_list_widget, @container + '_list', :display)
+    self << @form_widget = widget(:grid_form_widget, @container + '_form', :display)
     # This was an attempt to add the controller paths, didn't work.
     # fw.view_paths.concat(ActionController::Base.view_paths)
   end

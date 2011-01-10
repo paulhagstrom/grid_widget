@@ -8,12 +8,14 @@ module GridWidget
     # Later I might allow for some kind of configuration to choose the grid.  For now: jqGrid.
     include JqgridSupport::Controller
 
-    # Include the plugin-internal paths
+    # Include the plugin-internal paths, so that the views in lib/app/cells are locatable.
     Cells.setup do |config|
       config.append_view_path File.join(File.dirname(__FILE__), 'app', 'cells')
     end
     
-    # create a grid edit widget
+    # create a grid edit widget and set the default parameters
+    # This should be called with a block, which will be called on the new widget to set
+    # the configuration options.
     def grid_edit_widget(resource, options = {})
       options[:resource] = resource
       options[:widget_name] ||= resource + '_widget'
@@ -38,6 +40,10 @@ module GridWidget
       url_for_event(type, options)
     end
 
+    # wire_filters adds the Javascript watchers to the elements of the filter UI
+    # When a filter is clicked, it will call build_filter (defined by #grid_define_get_filter_parms)
+    # to append the new selection to the existing selection, and trigger a :filterSelected
+    # event that GridListWidget will respond to.
     def wire_filters
       wiring = <<-JS
       $('##{@parent.name}_list .filter').hover(function(){
@@ -52,7 +58,7 @@ module GridWidget
         f[:sequence].each do |sf|
           wiring += <<-JS
           $('#filter_#{@parent.name}_#{filter_group}_#{sf}').click(function(){
-      			$.get('#{rurl_for_event(:filterSelected)}', {'filters':build_filter_#{@parent.name}('#{filter_group}','#{sf}')}, null, 'script');
+      			$.get('#{rurl_for_event(:filterSelected)}', build_filter_#{@parent.name}('#{filter_group}','#{sf}'), null, 'script');
             });
           JS
         end
