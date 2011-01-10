@@ -1,9 +1,7 @@
-# GridEditWidget is the main widget, a container for GridFormWidget and GridListWidget.
-# The design is such that GridEditWidget holds all the configuration information, which
-# the form and list widgets retrieve via @parent.attribute.
+# GridEditWidget is the main widget, has the form and has GridListWidget as a child.
 #
 # This can be used in a controller in the following way, where 'contact' is the name of
-# a resource, see grid_edit_widget for what this means.
+# a resource.  #grid_edit_widget is defined in grid_widget.rb.
 #
 #   include JqgridSupport::Controller
 #   include Apotomo::Rails::ControllerMethods
@@ -14,7 +12,18 @@
 #     end
 #   end
 #
+# The resource should be the name of a model, in underscore form.  It is used
+# to retrieve the records for display.  A couple of further options can be
+# placed after resource as parameters.  The widget_id will be resource_widget
+# unless :widget_id is set explicitly.  You can pass other options, which will be
+# passed on to apotomo's widget, and could, for example, be used in app-defined mixins.
+#
+#     root << grid_edit_widget('contact', :widget_id => 'wid', :beer => :insufficient) do |c|
+#       [...configuration options...]
+#     end
+#
 # Configuration options come in several types:
+#   Grid DOM id:: Use dom_id (attribute), defaults to resource_widget (like widget_id)
 #   Grid options:: Use grid_options (attribute)
 #   Column options:: Use add_column
 #   Query options:: Use includes (attribute)
@@ -23,6 +32,7 @@
 #   Form template name:: Use form_template (attribute),
 #  looks in app/cells/grid_form_widget/form/ for {form_template}.html.erb, and
 #  defaults to {controller}.
+#   Where clause for sub-widgets:: Use where (attribute), define with lambda expecting parent id.
 #
 # They can all be set in a single configuration block and intermixed, though order
 # does matter when defining columns and filters.
@@ -31,7 +41,7 @@
 #
 #   has_widgets do |root|
 #     root << grid_edit_widget('contact') do |c|
-#       c.grid_options {:title => 'Grid title'}
+#       c.grid_options {:title => 'Contacts list'}
 #       c.has_includes :categories
 #       c.add_column('name', :custom => :custom_name)
 #       def c.custom_name(name)
@@ -43,43 +53,140 @@
 #     end
 #   end
 #
-# There are a couple of custom display methods already defined here that can be used.
-# They are
+# Columns can have custom output methods, defined in the configuration block.
+# There are a couple of these methods already defined here that can be used.
+# 
 # * :custom_yn (for booleans, display 'Yes' if true otherwise 'No')
 # * :custom_check (like :custom_yn, but displays a checkmark or nothing)
 # * :custom_abbrev (for long strings, cuts it off at 20 characters and provides ellipses)
 class GridEditWidget < Apotomo::Widget
   include GridWidget::Controller
   include AppSupport::Controller
-
-  after_initialize :setup
   
-  attr_reader :resource
   attr_accessor :includes
   attr_accessor :grid_options
+  attr_accessor :dom_id
+  attr_accessor :form_template
+  attr_accessor :where
+  attr_reader :resource
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
-  attr_reader :list_widget
-  attr_reader :form_widget
-  attr_accessor :form_template
-  attr_accessor :where
-  # attr_reader :parent_record
   
+  after_initialize :setup
+
+  # TODO: Try this later
+  # responds_to_event :formSubmit, :with => :form_submitted
+  
+  after_add do |me, parent|
+    me.respond_to_event :formSubmit, :from => me.name, :with => :form_submitted, :on => me.name
+  end
+  
+  # Draw the empty form and list
   def display
-    render :locals => {:container => @container}
+    render
+  end
+  
+  # catch the :recordSelected event, originates from the list.
+  # send the JS to populate and reveal the form.  Uses #display_form
+  def reveal_form
+    # Make a new form div so we can slide away the old one and swap ids
+    # (This all relies on the id of the form corresponding to an enclosing div, incidentally)
+    form = @dom_id + '_form'
+    clone_form = <<-JS
+    $('##{form}').clone().hide().css('background-color','#DDDDFF').attr('id','new_#{form}').insertAfter('##{form}');
+    $('##{form}').attr('id', 'ex_#{form}');
+    $('#new_#{form}').attr('id', '#{form}');
+    JS
+    # slide in the new one and slide out and destroy the old one
+    swap_display = <<-JS
+    $('##{form}').slideDown('fast');
+    $('#ex_#{form}').slideUp('fast', function() { $(this).remove();});
+    JS
+    # This is kind of an internal use of a state, but, you know, it works.
+    render :text => clone_form + self.display_form + ';' + swap_display
+  end
+  
+  def display_form
+    @record = fetch_record
+    # TODO: Is parentSelection redundant?  Can't I just watch for :recordSelected?
+    # trigger :parentSelection, :pid => @record.id
+    # TODO: Try to pass fewer locals
+    update :selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+      {:container => @dom_id + '_form', :resource => @resource, :record => @record}
   end
 
-  # parent_selection handles the :parentSelected event that a form widget posts when a record is
-  # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
-  # form widget.
-  #
-  # Because this is being written stateless, we need to dispatch the new information to the grid,
-  # so that when it calls to reload its dataset it supplies the right parameters.
-  def parent_selection
-    # @parent_record = @parent.record
-    # trigger :recordUpdated
-    render :text => grid_set_post_params(self.name, 'pid' => param(:pid)) + grid_reload + "/*parent_selection*/"
+  # TODO: Make this work.
+  # # parent_selection handles the :parentSelected event that a form widget posts when a record is
+  # # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
+  # # form widget.
+  # #
+  # # Because this is being written stateless, we need to dispatch the new information to the grid,
+  # # so that when it calls to reload its dataset it supplies the right parameters.
+  # def parent_selection
+  #   # @parent_record = @parent.record
+  #   # trigger :recordUpdated
+  #   render :text => grid_set_post_params(self.name, 'pid' => param(:pid)) + grid_reload + "/*parent_selection*/"
+  # end
+  
+  # The form is looking for things in a (@dom_id + '_form') array, which will by default be self.name (resource_widget)
+  def form_submitted
+    # TODO: Check. This might be a bit insecure at the moment 
+    if param(:form_action) == 'submit'
+      record = fetch_record
+      record.update_attributes(param(@dom_id + '_form'))
+      record.save
+      trigger :recordUpdated
+      render :text => turn_and_deveal_form
+    else
+      render :text => turn_and_deveal_form('#FF8888')
+    end
+  end
+  
+  def turn_and_deveal_form(color = '#88FF88')
+    form = @dom_id + '_form'
+    <<-JS
+    $('##{form}').css('background-color','#{color}').slideUp('fast');
+    $('##{form}').slideUp('fast');
+    JS
+  end
+
+  def delete_record
+    if record = fetch_record
+      record.destroy
+    end
+    trigger :recordUpdated
+    render :text => turn_and_deveal_form('#FF8888')
+  end
+  
+  # edit in place.  Right now, use only for toggles.
+  # If you edit in place, it will cancel the form if it is open.
+  # Later someday maybe I can make it reload or modify the form if the id matches.
+  def edit_record
+    c = @columns[param(:col).to_i]
+    if c[:inplace_edit]
+      record = fetch_record
+      if c[:toggle]
+        f = c[:field]
+        v = record.send(f)
+        record.update_attributes({f => !v})
+      end
+      record.save
+      trigger :recordUpdated
+      render :text => turn_and_deveal_form('#FF8888')
+    else
+      render :nothing => true
+    end
+  end
+  
+  # TODO: Should #fetch_record be private?
+  
+  def fetch_record
+    if param(:id).to_i > 0
+      record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
+    else
+      record = (Object.const_get @resource.classify).new
+    end
   end
 
   # Add a column to the column model for the grid.  This will include things like the label and field, any
@@ -186,17 +293,23 @@ class GridEditWidget < Apotomo::Widget
     value ? '<span class="ui-icon ui-icon-check"></span>' : ''
   end
   
+  # TODO: Make this work.
+  # The idea is that you are embedding another grid_edit_widget into this one.
   def embed_widget(where, widget)
-    @form_widget << widget
+    self << widget
     widget.where = where
-    @form_widget.respond_to_event :parentSelection, :from => @form_widget.name, :with => :parent_selection, :on => widget.name
+    # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
   end
   
   private
   
+  # Called by after_initialize, will set the defaults prior to executing the configuration block.
   def setup(*)
     @resource = param(:resource)
-    @container = self.name
+    # Removing container as unnecessary.  widget_id should be available in the views.
+    # @container = self.name
+
+    @dom_id = @resource + '_widget'
 
     @grid_options = {}
     
@@ -208,12 +321,10 @@ class GridEditWidget < Apotomo::Widget
     @filter_sequence = []
     @filter_default = []
     
+    # TODO: See if there's a better way to get the controller.  For example #controller?
     @form_template = params[:controller]
     
-    # create the list and form widgets
-    self << @list_widget = widget(:grid_list_widget, @container + '_list', :display)
-    self << @form_widget = widget(:grid_form_widget, @container + '_form', :display)
-    # This was an attempt to add the controller paths, didn't work.
-    # fw.view_paths.concat(ActionController::Base.view_paths)
+    # create the child list widget
+    self << widget(:grid_list_widget, @dom_id + '_list', :display)
   end
 end

@@ -1,10 +1,10 @@
 <div style="text-align:center;">
 	<div style="display:inline-block;text-align:left;">
-		<div id="<%= container + '_form' %>" class="popup_form" style="display:none;">
-			<%= rendered_children[container + '_form'] %>
+		<div id="<%= @dom_id + '_form' %>" class="popup_form" style="display:none;">
+			<p>[Nothing selected]</p>
 		</div>
-		<div id="<%= container + '_list' %>">
-			<%= rendered_children[container + '_list'] %>
+		<div id="<%= @dom_id + '_list' %>">
+			<%= rendered_children[@dom_id + '_list'] %>
 		</div>
 	</div>
 </div>

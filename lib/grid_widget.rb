@@ -18,12 +18,8 @@ module GridWidget
     # the configuration options.
     def grid_edit_widget(resource, options = {})
       options[:resource] = resource
-      options[:widget_name] ||= resource + '_widget'
-      options[:dom_id] ||= resource + '_widget'
-      options[:start] ||= :display
-      options[:title] ||= resource.pluralize.humanize
-      options[:cell_class] ||= :grid_edit_widget
-      w = widget(options[:cell_class], options[:widget_name], options[:start], options)
+      options[:widget_id] ||= resource + '_widget'
+      w = widget(:grid_edit_widget, options[:widget_id], :display, options)
       yield w if block_given?
       w
     end 
@@ -35,6 +31,7 @@ module GridWidget
     
     # I seem to have to do this to get url_for_event working well under a relative path.
     # I probably shouldn't have to
+    # TODO: Also see if params[:controller] is the best way to get the controller.
     def rurl_for_event(type, options = {})
       options[:controller] = (ENV['RAILS_RELATIVE_URL_ROOT'] ? ENV['RAILS_RELATIVE_URL_ROOT'] + '/' : '') + params[:controller]
       url_for_event(type, options)
@@ -44,9 +41,10 @@ module GridWidget
     # When a filter is clicked, it will call build_filter (defined by #grid_define_get_filter_parms)
     # to append the new selection to the existing selection, and trigger a :filterSelected
     # event that GridListWidget will respond to.
+    # wire_filters is called within GridListWidget, so @parent should refer to a GridEditWidget
     def wire_filters
       wiring = <<-JS
-      $('##{@parent.name}_list .filter').hover(function(){
+      $('##{@parent.dom_id}_list .filter').hover(function(){
           $(this).addClass('filter_hover');
         },function(){
           $(this).removeClass('filter_hover');
@@ -57,8 +55,8 @@ module GridWidget
         f = @parent.filters[filter_group]
         f[:sequence].each do |sf|
           wiring += <<-JS
-          $('#filter_#{@parent.name}_#{filter_group}_#{sf}').click(function(){
-      			$.get('#{rurl_for_event(:filterSelected)}', build_filter_#{@parent.name}('#{filter_group}','#{sf}'), null, 'script');
+          $('#filter_#{@parent.dom_id}_#{filter_group}_#{sf}').click(function(){
+      			$.get('#{rurl_for_event(:filterSelected)}', build_filter_#{@parent.dom_id}('#{filter_group}','#{sf}'), null, 'script');
             });
           JS
         end
@@ -70,6 +68,6 @@ module GridWidget
   
   require 'app/cells/grid_edit_widget'
   require 'app/cells/grid_list_widget'
-  require 'app/cells/grid_form_widget'
+  # require 'app/cells/grid_form_widget'
 
 end

@@ -20,6 +20,7 @@ module JqgridSupport
     #
     # Using eval feels funny here, but it allows me to do fairly easy associations like 'record.person.first_name'
     # I faked a 'self' method on the record for use when the custom function should get the whole record.
+    # This is called from GridListWidget, so @parent should refer to a GridEditWidget
     def grid_json_row(record)
       @parent.columns.map {|c|
         field_value = eval 'record.' + (c[:field] == 'self' ? 'tap {|x|}' : c[:field]) rescue 'Unset'
@@ -29,7 +30,7 @@ module JqgridSupport
     
     # Redraw the grid (re-request the dataset)
     def grid_reload
-      "$('##{@container + '_grid'}').trigger('reloadGrid');"
+      "$('##{@parent.dom_id + '_grid'}').trigger('reloadGrid');"
     end
     
     # grid_set_post_params stores the passed hash in jqGrid's postData hash.  This is information
@@ -65,8 +66,8 @@ module JqgridSupport
     # TODO: This would be better to define independently, rather than defining it per-grid.
     def grid_define_get_filter_parms
       raw <<-JS
-      function build_filter_#{@parent.name}(g,v){
-        var gpd = $('##{@parent.name}_grid').getGridParam('postData');
+      function build_filter_#{@parent.dom_id}(g,v){
+        var gpd = $('##{@parent.dom_id}_grid').getGridParam('postData');
         gpd['filters'] = gpd['filters'] + '|' + g + '-' + v;
         return gpd;
       }
