@@ -20,7 +20,7 @@ class GridListWidget < Apotomo::Widget
     
     parent.respond_to_event :recordUpdated, :from => parent.name, :with => :redisplay, :on => me.name
     
-    parent.respond_to_event :recordSelected, :from => me.name, :with => :reveal_form, :on => parent.name
+    parent.respond_to_event :recordSelected, :from => me.name, :with => :display_form, :on => parent.name
     parent.respond_to_event :editRecord, :from => me.name, :with => :edit_record, :on => parent.name
     parent.respond_to_event :deleteRecord, :from => me.name, :with => :delete_record, :on => parent.name
     
@@ -30,7 +30,7 @@ class GridListWidget < Apotomo::Widget
   end
   
   def display
-    # Note: no need to load the records because the grid will request them later
+    # Note: no need to load the records because the grid will request them later when it is wired.
     render :locals => {:light_filters => self.set_filter}
   end
   
@@ -68,7 +68,6 @@ class GridListWidget < Apotomo::Widget
     filter_parms = []
     groups_active = []
     my_params = @parent.get_request_parameters
-    # if filters = get_filter_parameters
     if my_params[:filters]
       my_params[:filters].each do |group,filter_ids|
         filter_parm = group
@@ -102,7 +101,8 @@ class GridListWidget < Apotomo::Widget
   
   private 
   
-  # This needs to be updated so that it can do pagination and live search
+  # #load_records applies all of the filters and constraints and loads the records for display.
+  # TODO: This needs to be updated so that it can do pagination and live search
   # TODO: Maybe allow custom sorts depending on the column selected -- to do common subordering.
   # TODO: Consider whether filters should specify ordering, or maybe default ordering
   def load_records
@@ -159,12 +159,10 @@ class GridListWidget < Apotomo::Widget
     end
     
     # limits (in case we are, e.g., dependent)
-    # TODO: make this work
-    # q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
     q = q.where(@parent.where.call(my_params[:pid])) if @parent.where && my_params[:pid]
 
-    # I should do more error checking here I think.
     # TODO: Make this work.
+    # I should do more error checking here I think.
     # if @parent.grid_options[:rows]
     #   # is this expensive?
     #   @total_records = q.count
@@ -193,53 +191,4 @@ class GridListWidget < Apotomo::Widget
     #   :limit => rows_per_page, :offset => @start_offset, :order => find_order)    
   end
   
-  # filter parameters come in like this:
-  # filters = group1-val1-val2-val3|group2-vala-valb-valc|group1-val4
-  # if a group repeats, the later values toggle existing, e.g., above group1 will have val4
-  # if it had ended in group1-val2, then val2 would have been removed from group1
-  # This will also detect and set the parent_id (params(:pid)) if it is set.
-  # TODO: Make the pid thing work
-  # def get_filter_parameters
-  #   return_filters = {}
-  #   @parent_record = param(:pid)
-  #   if param(:filters)
-  #     # split the HTTP parameter
-  #     filters = []
-  #     (filter_groups = param(:filters).split('|')).each do |f|
-  #       filter_bits = f.split('-')
-  #       filter_group = filter_bits.shift
-  #       filters << [filter_group, filter_bits]
-  #     end
-  #     # collect values, verify, make delta changes
-  #     filters.each do |group, filter_ids|
-  #       if @parent.filter_sequence.include?(group)
-  #         return_filters[group] ||= []
-  #         filter_ids.each do |filter_id|
-  #           if @parent.filters[group][:sequence].include?(filter_id)
-  #             if @parent.filters[group][:options].has_key?(:exclusive)
-  #               return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
-  #             else
-  #               if return_filters[group].include?(filter_id)
-  #                 return_filters[group].delete(filter_id)
-  #               else
-  #                 return_filters[group] << filter_id
-  #               end
-  #             end
-  #           end
-  #         end
-  #       end
-  #     end
-  #     # return return_filters.size > 0 ? return_filters : nil
-  #   end
-  #   unless return_filters.size > 0
-  #     # No (valid) filters, so return the default if there is one
-  #     @parent.filter_default.each do |df|
-  #       g, f = df
-  #       return_filters[g] ||= []
-  #       return_filters[g] << f
-  #     end
-  #   end
-  #   (return_filters.size > 0) ? return_filters : nil
-  # end
-    
 end

@@ -52,11 +52,6 @@ module JqgridSupport
       $('##{wid}_grid').setGridParam({'postData': gpd});
       JS
     end
-    # def grid_set_post_params(parms = {})
-    #   <<-JS
-    #   $('##{@parent.name}_grid').setGridParam({'postData':#{parms.to_json}});
-    #   JS
-    # end
     
   end
 

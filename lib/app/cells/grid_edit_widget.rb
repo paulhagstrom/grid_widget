@@ -85,17 +85,17 @@ class GridEditWidget < Apotomo::Widget
     @parent = parent
   end
   
-  # Draw the empty form and list
+  # Draw the empty form (and the child list widget, which will render first)
   def display
     render
   end
   
-  # catch the :recordSelected event, originates from the list.
-  # send the JS to populate and reveal the form.  Uses #display_form
-  def reveal_form
+  # #display_form catches the :recordSelected event that originates from the list #cell_click method.
+  # Emits the JS to populate and reveal the form.
+  def display_form
+    @record = fetch_record
     # Make a new form div so we can slide away the old one and swap ids
     # (This all relies on the id of the form corresponding to an enclosing div, incidentally)
-    # Forcibly remove any jqgrids still there or there will be a problem loading the new one
     form = @dom_id + '_form'
     clone_form = <<-JS
     var new_form = $('##{form}').clone().hide().css('background-color','#DDDDFF');
@@ -110,39 +110,14 @@ class GridEditWidget < Apotomo::Widget
     $('##{form}').slideDown('fast');
     $('#ex_#{form}').slideUp('fast', function() { $(this).remove();});
     JS
-    # This is kind of an internal use of a state, but, you know, it works.
-    render :text => clone_form + self.display_form + ';' + swap_display
+    render :text => clone_form + 
+      update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+        {:container => @dom_id + '_form', :resource => @resource, :record => @record}) +
+      ';' + swap_display
   end
   
-  def display_form
-    @record = fetch_record
-    # TODO: Is parentSelection redundant?  Can't I just watch for :recordSelected?
-    # TODO: Try to pass fewer locals
-    # trigger :parentSelection, :pid => @record.id
-    # TODO: YOU ARE HERE -- This doesn't work.  The set parameters doesn't seem to reach the grid in time.
-    # If I explicitly reload the grid, it then works.  So, it's all about getting the data into the postData
-    # at the right time.  And it may be that the right time is just as the grid is wired.
-    # YOU ARE STILL HERE and still with the same problem.
-    # js_extra = @imadaddy ? grid_set_post_params(@imadaddy, 'pid' => param(:id).to_i) + grid_reload(@imadaddy) : ''
-    # update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
-    #   {:container => @dom_id + '_form', :resource => @resource, :record => @record}) + ';' + js_extra
-    update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
-      {:container => @dom_id + '_form', :resource => @resource, :record => @record})
-  end
-
-  # TODO: Make this work.
-  # parent_selection handles the :parentSelected event that a form widget posts when a record is
-  # selected.  This receiver is active on a grid_edit_widget that is attached as a child to the
-  # form widget.
-  #
-  # Because this is being written stateless, we need to dispatch the new information to the grid,
-  # so that when it calls to reload its dataset it supplies the right parameters.
-  def parent_selection
-    # render :nothing => true
-    render :text => grid_set_post_params(self.name, 'pid' => param(:id)) + grid_reload(self.name) + "/*parent_selection*/"
-  end
-  
-  # The form is looking for things in a (@dom_id + '_form') array, which will by default be self.name (resource_widget)
+  # #form_submitted catches the :formSubmit event from the form (defined in the form_wrapper layout).
+  # Updates the record with attributes in the (@dom_id + '_form') hash (default: resource_widget_form)
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
     if param(:form_action) == 'submit'
@@ -156,6 +131,10 @@ class GridEditWidget < Apotomo::Widget
     end
   end
   
+  # Forms the Javascript that will change the background color of the form and slide it away.
+  # This is included in the responses to hitting update or cancel.
+  # The color is supposed to signal whether it is an update or a cancel (default is green for update).
+  # TODO: Use CSS
   def turn_and_deveal_form(color = '#88FF88')
     form = @dom_id + '_form'
     <<-JS
@@ -164,6 +143,8 @@ class GridEditWidget < Apotomo::Widget
     JS
   end
 
+  # #delete_record catches the :deleteRecord event posted by the grid when the delete button is hit.
+  # Deletes the selected record, cancels the form, and posts :recordUpdated to get the list to redraw.
   def delete_record
     if record = fetch_record
       record.destroy
@@ -172,9 +153,13 @@ class GridEditWidget < Apotomo::Widget
     render :text => turn_and_deveal_form('#FF8888')
   end
   
-  # edit in place.  Right now, use only for toggles.
-  # If you edit in place, it will cancel the form if it is open.
-  # Later someday maybe I can make it reload or modify the form if the id matches.
+  # #edit_record catches the :editRecord event posted by the grid for editing in place.
+  # At this point, it only handles toggling boolean values.
+  # TODO: Allow for other editing in place.
+  # When an in-place edit happens, the form is canceled because it *could* have been the one we
+  # were editing.
+  # TODO: Make this smarter so that it will cancel the form only if it *is* the one we are editing.
+  # TODO: Or make it even smarter and have it update the value in the form rather than cancel.
   def edit_record
     c = @columns[param(:col).to_i]
     if c[:inplace_edit]
@@ -192,12 +177,10 @@ class GridEditWidget < Apotomo::Widget
     end
   end
   
-  # TODO: Should #fetch_record be private?
-  
+  # #fetch_record loads either a new record or the record for which an ID was passed.
+  # TODO: Should #fetch_record be private?  
   def fetch_record
-    if param(:id).to_i > 0
-      record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
-    else
+    unless record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
       record = (Object.const_get @resource.classify).new
     end
   end
@@ -291,86 +274,83 @@ class GridEditWidget < Apotomo::Widget
     @filter_default << [@current_filter_group,id] if options.has_key?(:default)
   end
   
-  # Abbreviate a long string for display
+  # TODO: Move the custom display methods into their own module
+  
+  # Custom display method to abbreviate a long string
   def custom_abbrev(long_string)
     long_string[0..20] + (long_string.size > 10 ? '...' : '') rescue ''
   end
 
-  # Yes if true, otherwise no
+  # Custom display method for booleans: Yes if true, otherwise no
   def custom_yn(value)
     value ? 'YES' : 'No'
   end
 
-  # check if true, otherwise nothing, using jQuery UI
+  # Custom display method for booleans: check if true, otherwise nothing, using jQuery UI
   def custom_check(value)
     value ? '<span class="ui-icon ui-icon-check"></span>' : ''
   end
   
-  # TODO: Make this work.
-  # The idea is that you are embedding another grid_edit_widget into this one.
+  # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
+  # In the form, you would put, e.g., <%= rendered_children['contact_widget'] %> to specify the
+  # place where the sub-widget will appear.
+  # Intended to be called from either a controller or another GridEditWidget (e.g., in after_initialize)
+  # This is called with a 'where' clause that will be used when the records are loaded.
+  # It should be a lambda function which is passed an id, e.g., lambda {|x| {:person_id => x}}
+  # The 'where' clause is required, it tells the widget that it is subordinate.
   def embed_widget(where, widget)
     self << widget
     widget.where = where
-    @imadaddy = widget.name
-    # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
-    # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
   end
   
-  # filter parameters come in like this:
+  # #get_request_parameters inspects the request parameters, mostly to sanitize and update
+  # the filters.  It will also catch the parent's id (for subordinate forms).
+  #
+  # Filter parameters come in as a string in :filters in the following format:
   # filters = group1-val1-val2-val3|group2-vala-valb-valc|group1-val4
   # if a group repeats, the later values toggle existing, e.g., above group1 will have val4
   # if it had ended in group1-val2, then val2 would have been removed from group1
-  # This will also detect and set the parent_id (params(:pid)) if it is set.
-  # TODO: Make the pid thing work
+  # TODO: Investigate using real arrays, it would be simpler than having to parse this much.
   def get_request_parameters
-    # return_params = {}
-    # if my_params = param(@dom_id)
-      return_filters = {}
-      # return_filters = my_params.has_key?(:pid) ? {:pid => my_params[:pid]} : {}
-      return_params = param(:pid) ? {:pid => param(:pid)} : {}
-      # if my_params[:filters]
-      if param(:filters)
-        # parse the filters parameter
-        filters = []
-        # (filter_groups = my_params(:filters).split('|')).each do |f|
-        (filter_groups = param(:filters).split('|')).each do |f|
-          filter_parts = f.split('-')
-          filter_group = filter_parts.shift
-          filters << [filter_group, filter_parts]
-        end
-        # verify the filters, make delta changes
-        filters.each do |group, filter_ids|
-          if @filter_sequence.include?(group)
-            return_filters[group] ||= []
-            filter_ids.each do |filter_id|
-              if @filters[group][:sequence].include?(filter_id)
-                if @filters[group][:options].has_key?(:exclusive)
-                  return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
+    return_filters = {}
+    return_params = param(:pid) ? {:pid => param(:pid)} : {}
+    if param(:filters)
+      # parse the filters parameter
+      filters = []
+      (filter_groups = param(:filters).split('|')).each do |f|
+        filter_parts = f.split('-')
+        filter_group = filter_parts.shift
+        filters << [filter_group, filter_parts]
+      end
+      # verify the filters, make delta changes
+      filters.each do |group, filter_ids|
+        if @filter_sequence.include?(group)
+          return_filters[group] ||= []
+          filter_ids.each do |filter_id|
+            if @filters[group][:sequence].include?(filter_id)
+              if @filters[group][:options].has_key?(:exclusive)
+                return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
+              else
+                if return_filters[group].include?(filter_id)
+                  return_filters[group].delete(filter_id)
                 else
-                  if return_filters[group].include?(filter_id)
-                    return_filters[group].delete(filter_id)
-                  else
-                    return_filters[group] << filter_id
-                  end
+                  return_filters[group] << filter_id
                 end
               end
             end
           end
         end
       end
-      unless return_filters.size > 0
-        # No (valid) filters, so return the default if there is one
-        @filter_default.each do |df|
-          g, f = df
-          return_filters[g] ||= []
-          return_filters[g] << f
-        end
+    end
+    unless return_filters.size > 0
+      # No (valid) filters, so return the default if there is one
+      @filter_default.each do |df|
+        g, f = df
+        return_filters[g] ||= []
+        return_filters[g] << f
       end
-      return_params[:filters] = (return_filters.size > 0) ? return_filters : nil
-    # else
-        # no parameters for this widget
-    # end
-    puts "RETURN_PARAMS: " + return_params.inspect
+    end
+    return_params[:filters] = (return_filters.size > 0) ? return_filters : nil
     return_params
   end
   
@@ -379,8 +359,6 @@ class GridEditWidget < Apotomo::Widget
   # Called by after_initialize, will set the defaults prior to executing the configuration block.
   def setup(*)
     @resource = param(:resource)
-    # Removing container as unnecessary.  widget_id should be available in the views.
-    # @container = self.name
 
     @dom_id = @resource + '_widget'
 

@@ -1,8 +1,6 @@
 require 'jqgrid_support'
 
 # The GridWidget module mixes in relevant controller and helper methods
-# Note that for these to be included properly, the following line needs to be in config/application.rb
-# config.autoload_paths += %W(#{config.root}/lib/grid_edit)
 module GridWidget
   module Controller
     # Later I might allow for some kind of configuration to choose the grid.  For now: jqGrid.
@@ -68,6 +66,5 @@ module GridWidget
   
   require 'app/cells/grid_edit_widget'
   require 'app/cells/grid_list_widget'
-  # require 'app/cells/grid_form_widget'
 
 end
