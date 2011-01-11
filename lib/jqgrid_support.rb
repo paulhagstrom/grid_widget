@@ -120,12 +120,13 @@ module JqgridSupport
     # Support for #grid_wire
     # sets the click action on the table cells.
     def grid_wire_cell_select
+      form = @parent.name + '_form'
       i, form_columns = @parent.columns.inject([0,[]]) {|a,c| a[1] << a[0] if c[:open_panel] || c[:inplace_edit]; a[0] += 1; a }
       form_columns_js = form_columns.size > 0 ? "(col in {'#{form_columns.join("':'','")}':''})" : 'true'
       <<-JS
       onCellSelect: function(rowid,col,content,event) {
-        if (($('##{@parent.name + '_form'}').css('display') == 'block') || (#{form_columns_js})) {
-    			$.get('#{rurl_for_event(:cellClick)}', {'id':rowid, 'col':col}, null, 'script');
+        if (($('##{form}').css('display') == 'block') || (#{form_columns_js})) {
+    			$.get('#{rurl_for_event(:cellClick)}', {'id':rowid, 'col':col, 'pid':'0'}, null, 'script');
   			}
       },
       JS
@@ -189,7 +190,7 @@ module JqgridSupport
       if @parent.grid_options[:add_button]
         add_function = <<-JS
         function(){
-    			$.get('#{rurl_for_event(:cellClick)}', {'id':'0'}, null, 'script');
+    			$.get('#{rurl_for_event(:cellClick)}', {'id':'0', 'pid':$('##{@parent.dom_id}_grid').getGridParam('postData')['pid']}, null, 'script');
         }
         JS
         prmAdd = {

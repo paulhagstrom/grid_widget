@@ -180,8 +180,14 @@ class GridEditWidget < Apotomo::Widget
   # #fetch_record loads either a new record or the record for which an ID was passed.
   # TODO: Should #fetch_record be private?  
   def fetch_record
-    unless record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
-      record = (Object.const_get @resource.classify).new
+    if param(:id).to_i > 0
+      record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
+    else
+      if @where
+        record = (Object.const_get @resource.classify).where(@where.call(param(:pid))).new
+      else
+        record = (Object.const_get @resource.classify).new
+      end
     end
   end
 

@@ -3,7 +3,7 @@
 <%= hidden_field_tag "id", record.id, :id => "#{container}_id" %>
 <%= yield %>
 <%= hidden_field_tag "form_action", '', :id => container + '_form_button' %>
-<%= submit_tag 'Update', :onclick => "$('##{container + '_form_button'}').val('submit');" %>
+<%= submit_tag (record.id.to_i > 0 ? 'Update' : 'Add'), :onclick => "$('##{container + '_form_button'}').val('submit');" %>
 <%= submit_tag 'Cancel', :onclick => "$('##{container + '_form_button'}').val('cancel');" %>
 <% end %>
 <%= yield :after_form %>

@@ -53,7 +53,7 @@ class GridListWidget < Apotomo::Widget
     if @parent.columns[param(:col).to_i][:inplace_edit]
       trigger :editRecord, :id => param(:id), :col => param(:col)
     else
-      trigger :recordSelected, :id => param(:id)
+      trigger :recordSelected, :id => param(:id), :pid => param(:postData) ? param(:postData)[:pid] : nil
     end
   end
   
