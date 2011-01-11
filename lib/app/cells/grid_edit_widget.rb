@@ -68,6 +68,7 @@ class GridEditWidget < Apotomo::Widget
   attr_accessor :dom_id
   attr_accessor :form_template
   attr_accessor :where
+  attr_accessor :record
   attr_reader :resource
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
@@ -80,6 +81,8 @@ class GridEditWidget < Apotomo::Widget
   
   after_add do |me, parent|
     me.respond_to_event :formSubmit, :from => me.name, :with => :form_submitted, :on => me.name
+    # TODO: Figure out how I can get this without an instance variable.
+    @parent = parent
   end
   
   # Draw the empty form and list
@@ -95,10 +98,12 @@ class GridEditWidget < Apotomo::Widget
     # Forcibly remove any jqgrids still there or there will be a problem loading the new one
     form = @dom_id + '_form'
     clone_form = <<-JS
-    $('##{form}').clone().hide().css('background-color','#DDDDFF').attr('id','new_#{form}').insertAfter('##{form}');
+    var new_form = $('##{form}').clone().hide().css('background-color','#DDDDFF');
     $('##{form}').attr('id', 'ex_#{form}');
-    $('#ex_#{form} .ui-jqgrid.ui-widget').remove();
-    $('#new_#{form}').attr('id', '#{form}');
+    $('#ex_#{form}').find('[id]').attr('id', function(){return 'ex_' + this.id;});
+    // These elements are no more.  They have ceased to be.  Bereft of life, they rest in peace.
+    // This is an ex_form!
+    new_form.insertAfter('#ex_#{form}');
     JS
     # slide in the new one and slide out and destroy the old one
     swap_display = <<-JS
@@ -116,10 +121,13 @@ class GridEditWidget < Apotomo::Widget
     # trigger :parentSelection, :pid => @record.id
     # TODO: YOU ARE HERE -- This doesn't work.  The set parameters doesn't seem to reach the grid in time.
     # If I explicitly reload the grid, it then works.  So, it's all about getting the data into the postData
-    # at the right time.  And it may be that the right time is just as the grid is wired.  
-    js_extra = @imadaddy ? grid_set_post_params(@imadaddy, 'pid' => param(:id)) + grid_reload(@imadaddy) : ''
+    # at the right time.  And it may be that the right time is just as the grid is wired.
+    # YOU ARE STILL HERE and still with the same problem.
+    # js_extra = @imadaddy ? grid_set_post_params(@imadaddy, 'pid' => param(:id).to_i) + grid_reload(@imadaddy) : ''
+    # update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+    #   {:container => @dom_id + '_form', :resource => @resource, :record => @record}) + ';' + js_extra
     update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
-      {:container => @dom_id + '_form', :resource => @resource, :record => @record}) + ';' + js_extra
+      {:container => @dom_id + '_form', :resource => @resource, :record => @record})
   end
 
   # TODO: Make this work.
@@ -130,8 +138,8 @@ class GridEditWidget < Apotomo::Widget
   # Because this is being written stateless, we need to dispatch the new information to the grid,
   # so that when it calls to reload its dataset it supplies the right parameters.
   def parent_selection
-    render :nothing => true
-    # render :text => grid_set_post_params(self.name, 'pid' => param(:id)) + grid_reload(self.name) + "/*parent_selection*/"
+    # render :nothing => true
+    render :text => grid_set_post_params(self.name, 'pid' => param(:id)) + grid_reload(self.name) + "/*parent_selection*/"
   end
   
   # The form is looking for things in a (@dom_id + '_form') array, which will by default be self.name (resource_widget)
@@ -306,6 +314,64 @@ class GridEditWidget < Apotomo::Widget
     @imadaddy = widget.name
     # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
     # self.respond_to_event :parentSelection, :from => self.name, :with => :parent_selection, :on => widget.name
+  end
+  
+  # filter parameters come in like this:
+  # filters = group1-val1-val2-val3|group2-vala-valb-valc|group1-val4
+  # if a group repeats, the later values toggle existing, e.g., above group1 will have val4
+  # if it had ended in group1-val2, then val2 would have been removed from group1
+  # This will also detect and set the parent_id (params(:pid)) if it is set.
+  # TODO: Make the pid thing work
+  def get_request_parameters
+    # return_params = {}
+    # if my_params = param(@dom_id)
+      return_filters = {}
+      # return_filters = my_params.has_key?(:pid) ? {:pid => my_params[:pid]} : {}
+      return_params = param(:pid) ? {:pid => param(:pid)} : {}
+      # if my_params[:filters]
+      if param(:filters)
+        # parse the filters parameter
+        filters = []
+        # (filter_groups = my_params(:filters).split('|')).each do |f|
+        (filter_groups = param(:filters).split('|')).each do |f|
+          filter_parts = f.split('-')
+          filter_group = filter_parts.shift
+          filters << [filter_group, filter_parts]
+        end
+        # verify the filters, make delta changes
+        filters.each do |group, filter_ids|
+          if @filter_sequence.include?(group)
+            return_filters[group] ||= []
+            filter_ids.each do |filter_id|
+              if @filters[group][:sequence].include?(filter_id)
+                if @filters[group][:options].has_key?(:exclusive)
+                  return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
+                else
+                  if return_filters[group].include?(filter_id)
+                    return_filters[group].delete(filter_id)
+                  else
+                    return_filters[group] << filter_id
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+      unless return_filters.size > 0
+        # No (valid) filters, so return the default if there is one
+        @filter_default.each do |df|
+          g, f = df
+          return_filters[g] ||= []
+          return_filters[g] << f
+        end
+      end
+      return_params[:filters] = (return_filters.size > 0) ? return_filters : nil
+    # else
+        # no parameters for this widget
+    # end
+    puts "RETURN_PARAMS: " + return_params.inspect
+    return_params
   end
   
   private

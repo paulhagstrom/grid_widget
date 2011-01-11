@@ -42,6 +42,8 @@ module JqgridSupport
     # This assumes that parms is a Hash, and it will not replace the entire postData assoc array, 
     # but only those elements whose keys are mentioned in parms.  (This is so changes in filters don't
     # necessarily clobber selected records and vice-versa.)
+    #
+    # TODO: This should probably be pulled apart so only the jqGrid logic is here
     def grid_set_post_params(wid, parms)
       set_values = parms.inject('') {|s,(k,v)| s += "gpd['#{k}']=#{v.to_json};"; s}
       <<-JS
@@ -103,10 +105,20 @@ module JqgridSupport
           pager: '##{domid}_pager',
           #{grid_wire_pager}
           #{grid_wire_default_sort}
+          #{grid_wire_set_id}
       		viewrecords: true,
       		caption: '#{@parent.grid_options[:title] || @parent.resource.pluralize.humanize}'
       	});
       #{grid_wire_nav(domid)}
+      JS
+    end
+    
+    # Support for #grid_wire
+    # limits to passed :id if parent's id is set
+    def grid_wire_set_id
+      return '' unless @parent.where && @parent.parent.record && @parent.parent.record.id
+      <<-JS
+      postData: {'pid':#{@parent.parent.record.id}},
       JS
     end
     

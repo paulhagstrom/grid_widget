@@ -11,7 +11,7 @@
 				<tr>
 				<% col = 1 %>
 			<% end %>
-			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
+			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @parent.dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
 		<% end %>
 		<% while (col += 1) <= col_max %>
 			<td class="filter_empty">&nbsp;</td>

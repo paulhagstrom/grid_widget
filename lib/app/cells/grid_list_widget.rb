@@ -67,8 +67,10 @@ class GridListWidget < Apotomo::Widget
     highlight_active = ''
     filter_parms = []
     groups_active = []
-    if filters = get_filter_parameters
-      filters.each do |group,filter_ids|
+    my_params = @parent.get_request_parameters
+    # if filters = get_filter_parameters
+    if my_params[:filters]
+      my_params[:filters].each do |group,filter_ids|
         filter_parm = group
         filter_ids.each do |filter_id|
           highlight_active += <<-JS
@@ -141,8 +143,10 @@ class GridListWidget < Apotomo::Widget
     q = q.includes(@parent.includes) if @parent.includes
     
     # filtering
-    if filters = get_filter_parameters
-      filters.each do |group,filter_ids|
+    my_params = @parent.get_request_parameters
+    if my_params[:filters]
+    # if filters = get_filter_parameters
+      my_params[:filters].each do |group,filter_ids|
         fg_options = @parent.filters[group][:options]
         q = q.where(fg_options[:where].call(filter_ids)) if fg_options.has_key?(:where) && filter_ids.size > 0
         q = q.joins(fg_options[:joins]) if fg_options.has_key?(:joins)
@@ -156,7 +160,8 @@ class GridListWidget < Apotomo::Widget
     
     # limits (in case we are, e.g., dependent)
     # TODO: make this work
-    q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
+    # q = q.where(@parent.where.call(@parent_record)) if @parent.where && @parent_record
+    q = q.where(@parent.where.call(my_params[:pid])) if @parent.where && my_params[:pid]
 
     # I should do more error checking here I think.
     # TODO: Make this work.
@@ -194,47 +199,47 @@ class GridListWidget < Apotomo::Widget
   # if it had ended in group1-val2, then val2 would have been removed from group1
   # This will also detect and set the parent_id (params(:pid)) if it is set.
   # TODO: Make the pid thing work
-  def get_filter_parameters
-    return_filters = {}
-    @parent_record = param(:pid)
-    if param(:filters)
-      # split the HTTP parameter
-      filters = []
-      (filter_groups = param(:filters).split('|')).each do |f|
-        filter_bits = f.split('-')
-        filter_group = filter_bits.shift
-        filters << [filter_group, filter_bits]
-      end
-      # collect values, verify, make delta changes
-      filters.each do |group, filter_ids|
-        if @parent.filter_sequence.include?(group)
-          return_filters[group] ||= []
-          filter_ids.each do |filter_id|
-            if @parent.filters[group][:sequence].include?(filter_id)
-              if @parent.filters[group][:options].has_key?(:exclusive)
-                return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
-              else
-                if return_filters[group].include?(filter_id)
-                  return_filters[group].delete(filter_id)
-                else
-                  return_filters[group] << filter_id
-                end
-              end
-            end
-          end
-        end
-      end
-      # return return_filters.size > 0 ? return_filters : nil
-    end
-    unless return_filters.size > 0
-      # No (valid) filters, so return the default if there is one
-      @parent.filter_default.each do |df|
-        g, f = df
-        return_filters[g] ||= []
-        return_filters[g] << f
-      end
-    end
-    (return_filters.size > 0) ? return_filters : nil
-  end
+  # def get_filter_parameters
+  #   return_filters = {}
+  #   @parent_record = param(:pid)
+  #   if param(:filters)
+  #     # split the HTTP parameter
+  #     filters = []
+  #     (filter_groups = param(:filters).split('|')).each do |f|
+  #       filter_bits = f.split('-')
+  #       filter_group = filter_bits.shift
+  #       filters << [filter_group, filter_bits]
+  #     end
+  #     # collect values, verify, make delta changes
+  #     filters.each do |group, filter_ids|
+  #       if @parent.filter_sequence.include?(group)
+  #         return_filters[group] ||= []
+  #         filter_ids.each do |filter_id|
+  #           if @parent.filters[group][:sequence].include?(filter_id)
+  #             if @parent.filters[group][:options].has_key?(:exclusive)
+  #               return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
+  #             else
+  #               if return_filters[group].include?(filter_id)
+  #                 return_filters[group].delete(filter_id)
+  #               else
+  #                 return_filters[group] << filter_id
+  #               end
+  #             end
+  #           end
+  #         end
+  #       end
+  #     end
+  #     # return return_filters.size > 0 ? return_filters : nil
+  #   end
+  #   unless return_filters.size > 0
+  #     # No (valid) filters, so return the default if there is one
+  #     @parent.filter_default.each do |df|
+  #       g, f = df
+  #       return_filters[g] ||= []
+  #       return_filters[g] << f
+  #     end
+  #   end
+  #   (return_filters.size > 0) ? return_filters : nil
+  # end
     
 end
