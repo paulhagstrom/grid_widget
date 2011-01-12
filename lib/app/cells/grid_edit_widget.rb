@@ -81,8 +81,6 @@ class GridEditWidget < Apotomo::Widget
   
   after_add do |me, parent|
     me.respond_to_event :formSubmit, :from => me.name, :with => :form_submitted, :on => me.name
-    # TODO: Figure out how I can get this without an instance variable.
-    @parent = parent
   end
   
   # Draw the empty form (and the child list widget, which will render first)
@@ -377,8 +375,9 @@ class GridEditWidget < Apotomo::Widget
     @filter_sequence = []
     @filter_default = []
     
-    # TODO: See if there's a better way to get the controller.  For example #controller?
-    @form_template = params[:controller]
+    # Guesses that you will be using the form template matching the name of your controller
+    # This can be overridden in the configuration, but defaults to 'authors' for AuthorsController
+    @form_template = parent_controller.class.name.underscore.gsub(/_controller$/,'')
     
     # create the child list widget
     self << widget(:grid_list_widget, @dom_id + '_list', :display)

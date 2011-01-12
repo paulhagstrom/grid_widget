@@ -22,8 +22,6 @@ class GridListWidget < Apotomo::Widget
     parent.respond_to_event :editRecord, :from => me.name, :with => :edit_record, :on => parent.name
     parent.respond_to_event :deleteRecord, :from => me.name, :with => :delete_record, :on => parent.name
     
-    # TODO: See if there's a better way to do this, e.g., #parent?
-    @parent = parent
     @resource = parent.resource
   end
   
@@ -48,7 +46,7 @@ class GridListWidget < Apotomo::Widget
   # the parameters :col and :id come in with the request
   # TODO: Is that jqGrid-specific enough to put in jqgrid_support?
   def cell_click
-    if @parent.columns[param(:col).to_i][:inplace_edit]
+    if parent.columns[param(:col).to_i][:inplace_edit]
       trigger :editRecord, :id => param(:id), :col => param(:col)
     else
       trigger :recordSelected, :id => param(:id), :pid => param(:postData) ? param(:postData)[:pid] : nil
@@ -65,13 +63,13 @@ class GridListWidget < Apotomo::Widget
     highlight_active = ''
     filter_parms = []
     groups_active = []
-    my_params = @parent.get_request_parameters
+    my_params = parent.get_request_parameters
     if my_params[:filters]
       my_params[:filters].each do |group,filter_ids|
         filter_parm = group
         filter_ids.each do |filter_id|
           highlight_active += <<-JS
-          $('#filter_#{@parent.dom_id}_#{group}_#{filter_id}').addClass('filter_on').removeClass('filter_off').removeClass('filter_onf');
+          $('#filter_#{parent.dom_id}_#{group}_#{filter_id}').addClass('filter_on').removeClass('filter_off').removeClass('filter_onf');
           JS
           filter_parm += '-' + filter_id.to_s
         end
@@ -82,18 +80,18 @@ class GridListWidget < Apotomo::Widget
     # Build the Javascript that will turn all the filters in a group to either: neutral if no filters are on,
     # or off, in preparation for turning the active ones on.
     group_style = ''
-    @parent.filter_sequence.each do |f|
+    parent.filter_sequence.each do |f|
       if groups_active.include?(f)
         group_style += <<-JS
-        $('##{@parent.dom_id}_list .filter_#{f}').removeClass('filter_on').addClass('filter_off').removeClass('filter_onf');
+        $('##{parent.dom_id}_list .filter_#{f}').removeClass('filter_on').addClass('filter_off').removeClass('filter_onf');
         JS
       else
         group_style += <<-JS
-        $('##{@parent.dom_id}_list .filter_#{f}').removeClass('filter_on').removeClass('filter_off').addClass('filter_onf');
+        $('##{parent.dom_id}_list .filter_#{f}').removeClass('filter_on').removeClass('filter_off').addClass('filter_onf');
         JS
       end
     end
-    store_filters = grid_set_post_params(@parent.dom_id, {'filters' => filter_parms.join('|')})
+    store_filters = grid_set_post_params(parent.dom_id, {'filters' => filter_parms.join('|')})
     render :text => group_style + highlight_active + store_filters + grid_reload
   end
   
@@ -109,12 +107,12 @@ class GridListWidget < Apotomo::Widget
     # sorting
     sort_index = param(:sidx)
     sort_order = (param(:sord) == 'desc') ? 'DESC' : 'ASC'
-    if @parent.sortable_columns[sort_index]
-      column = @parent.columns[@parent.sortable_columns[sort_index]]      
+    if parent.sortable_columns[sort_index]
+      column = parent.columns[parent.sortable_columns[sort_index]]      
     else
-      if @parent.default_sort
-        column = @parent.columns[@parent.sortable_columns[@parent.default_sort[0]]]
-        sort_order = @parent.default_sort[1] ? 'ASC' : 'DESC'
+      if parent.default_sort
+        column = parent.columns[parent.sortable_columns[parent.default_sort[0]]]
+        sort_order = parent.default_sort[1] ? 'ASC' : 'DESC'
       else
         column = nil
       end
@@ -138,18 +136,18 @@ class GridListWidget < Apotomo::Widget
     end
 
     # includes for eager loading
-    q = q.includes(@parent.includes) if @parent.includes
+    q = q.includes(parent.includes) if parent.includes
     
     # filtering
-    my_params = @parent.get_request_parameters
+    my_params = parent.get_request_parameters
     if my_params[:filters]
     # if filters = get_filter_parameters
       my_params[:filters].each do |group,filter_ids|
-        fg_options = @parent.filters[group][:options]
+        fg_options = parent.filters[group][:options]
         q = q.where(fg_options[:where].call(filter_ids)) if fg_options.has_key?(:where) && filter_ids.size > 0
         q = q.joins(fg_options[:joins]) if fg_options.has_key?(:joins)
         filter_ids.each do |f|
-          f_options = @parent.filters[group][:filters][f]
+          f_options = parent.filters[group][:filters][f]
           q = q.where(f_options[:where]) if f_options.has_key?(:where)
           q = q.joins(f_options[:joins]) if f_options.has_key?(:joins)
         end
@@ -157,16 +155,16 @@ class GridListWidget < Apotomo::Widget
     end
     
     # limits (in case we are, e.g., dependent)
-    q = q.where(@parent.where.call(my_params[:pid])) if @parent.where && my_params[:pid]
+    q = q.where(parent.where.call(my_params[:pid])) if parent.where && my_params[:pid]
 
     # TODO: Make this work.
     # I should do more error checking here I think.
-    # if @parent.grid_options[:rows]
+    # if parent.grid_options[:rows]
     #   # is this expensive?
     #   @total_records = q.count
     #   @page, @shown_rows = [param(:page).to_i, param(:rows).to_i]
     #   @page = 1 if @page < 1
-    #   @shown_rows = @parent.grid_options[:rows] if @shown_rows < 1
+    #   @shown_rows = parent.grid_options[:rows] if @shown_rows < 1
     #   q = q.offset((@page-1)*@shown_rows)
     #   q = q.limit(@shown_rows)
     # end

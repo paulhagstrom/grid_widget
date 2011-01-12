@@ -1,5 +1,5 @@
-<% @parent.filter_sequence.each do |filter_group| %>
-	<% f = @parent.filters[filter_group] %>
+<% @cell.parent.filter_sequence.each do |filter_group| %>
+	<% f = @cell.parent.filters[filter_group] %>
 	<p class="filter_label"><%= f[:options][:name] %></p>
 	<table class="filter_table">
 		<tr>
@@ -11,7 +11,7 @@
 				<tr>
 				<% col = 1 %>
 			<% end %>
-			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @parent.dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
+			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @cell.parent.dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
 		<% end %>
 		<% while (col += 1) <= col_max %>
 			<td class="filter_empty">&nbsp;</td>

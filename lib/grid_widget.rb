@@ -45,22 +45,22 @@ module GridWidget
     # When a filter is clicked, it will call build_filter (defined by #grid_define_get_filter_parms)
     # to append the new selection to the existing selection, and trigger a :filterSelected
     # event that GridListWidget will respond to.
-    # wire_filters is called within GridListWidget, so @parent should refer to a GridEditWidget
+    # wire_filters is called within GridListWidget, so @cell.parent should refer to a GridEditWidget
     def wire_filters
       wiring = <<-JS
-      $('##{@parent.dom_id}_list .filter').hover(function(){
+      $('##{@cell.parent.dom_id}_list .filter').hover(function(){
           $(this).addClass('filter_hover');
         },function(){
           $(this).removeClass('filter_hover');
         });
       JS
       wiring += grid_define_get_filter_parms
-      @parent.filter_sequence.each do |filter_group|
-        f = @parent.filters[filter_group]
+      @cell.parent.filter_sequence.each do |filter_group|
+        f = @cell.parent.filters[filter_group]
         f[:sequence].each do |sf|
           wiring += <<-JS
-          $('#filter_#{@parent.dom_id}_#{filter_group}_#{sf}').click(function(){
-      			$.get('#{rurl_for_event(:filterSelected)}', build_filter_#{@parent.dom_id}('#{filter_group}','#{sf}'), null, 'script');
+          $('#filter_#{@cell.parent.dom_id}_#{filter_group}_#{sf}').click(function(){
+      			$.get('#{rurl_for_event(:filterSelected)}', build_filter_#{@cell.parent.dom_id}('#{filter_group}','#{sf}'), null, 'script');
             });
           JS
         end

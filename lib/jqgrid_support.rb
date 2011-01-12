@@ -20,17 +20,17 @@ module JqgridSupport
     #
     # Using eval feels funny here, but it allows me to do fairly easy associations like 'record.person.first_name'
     # I faked a 'self' method on the record for use when the custom function should get the whole record.
-    # This is called from GridListWidget, so @parent should refer to a GridEditWidget
+    # This is called from GridListWidget, so @cell.parent should refer to a GridEditWidget
     def grid_json_row(record)
-      @parent.columns.map {|c|
+      parent.columns.map {|c|
         field_value = eval 'record.' + (c[:field] == 'self' ? 'tap {|x|}' : c[:field]) rescue 'Unset'
-        c[:custom] ? @parent.send(c[:custom], field_value) : field_value
+        c[:custom] ? parent.send(c[:custom], field_value) : field_value
         }
     end
     
     # Redraw the grid (re-request the dataset)
     def grid_reload(domid = nil)
-      domid ||= @parent.dom_id
+      domid ||= parent.dom_id
       "$('##{domid}_grid').trigger('reloadGrid');"
     end
     
@@ -64,8 +64,8 @@ module JqgridSupport
     # TODO: This would be better to define independently, rather than defining it per-grid.
     def grid_define_get_filter_parms
       raw <<-JS
-      function build_filter_#{@parent.dom_id}(g,v){
-        var gpd = $('##{@parent.dom_id}_grid').getGridParam('postData');
+      function build_filter_#{@cell.parent.dom_id}(g,v){
+        var gpd = $('##{@cell.parent.dom_id}_grid').getGridParam('postData');
         gpd['filters'] = gpd['filters'] + '|' + g + '-' + v;
         return gpd;
       }
@@ -92,8 +92,8 @@ module JqgridSupport
       		datatype:'json',
       		mtype: 'GET',
       		colModel:[#{grid_columns}],
-      		rowNum:#{@parent.grid_options[:rows] || 10},
-      		height:#{@parent.grid_options[:height] || 400},
+      		rowNum:#{@cell.parent.grid_options[:rows] || 10},
+      		height:#{@cell.parent.grid_options[:height] || 400},
       		//scrollrows:true,
       		//altRows:false,
           // autowidth: true, 
@@ -102,7 +102,7 @@ module JqgridSupport
           #{grid_wire_default_sort}
           #{grid_wire_set_id}
       		viewrecords: true,
-      		caption: '#{@parent.grid_options[:title] || @parent.resource.pluralize.humanize}'
+      		caption: '#{@cell.parent.grid_options[:title] || @cell.parent.resource.pluralize.humanize}'
       	});
       #{grid_wire_nav(domid)}
       JS
@@ -111,17 +111,17 @@ module JqgridSupport
     # Support for #grid_wire
     # limits to passed :id if parent's id is set
     def grid_wire_set_id
-      return '' unless @parent.where && @parent.parent.record && @parent.parent.record.id
+      return '' unless @cell.parent.where && @cell.parent.parent.record && @cell.parent.parent.record.id
       <<-JS
-      postData: {'pid':#{@parent.parent.record.id}},
+      postData: {'pid':#{@cell.parent.parent.record.id}},
       JS
     end
     
     # Support for #grid_wire
     # sets the click action on the table cells.
     def grid_wire_cell_select
-      form = @parent.name + '_form'
-      i, form_columns = @parent.columns.inject([0,[]]) {|a,c| a[1] << a[0] if c[:open_panel] || c[:inplace_edit]; a[0] += 1; a }
+      form = @cell.parent.name + '_form'
+      i, form_columns = @cell.parent.columns.inject([0,[]]) {|a,c| a[1] << a[0] if c[:open_panel] || c[:inplace_edit]; a[0] += 1; a }
       form_columns_js = form_columns.size > 0 ? "(col in {'#{form_columns.join("':'','")}':''})" : 'true'
       <<-JS
       onCellSelect: function(rowid,col,content,event) {
@@ -136,15 +136,15 @@ module JqgridSupport
     # Return the Javascript columns model (with just the jQGrid options)
     def grid_columns
       omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle]
-      (@parent.columns.map {|c| (c.dup.delete_if{|k,v| omit_options.include?(k)}).to_json}).join(',')
+      (@cell.parent.columns.map {|c| (c.dup.delete_if{|k,v| omit_options.include?(k)}).to_json}).join(',')
     end
   
     # Support for #grid_wire
     # Sets the default sort if one is defined
     def grid_wire_default_sort
-      if ds = @parent.default_sort
+      if ds = @cell.parent.default_sort
         <<-JS
-        sortname: '#{@parent.columns[@parent.sortable_columns[ds[0]]][:index]}',
+        sortname: '#{@cell.parent.columns[@cell.parent.sortable_columns[ds[0]]][:index]}',
         sortorder: '#{ds[1] ? 'asc' : 'desc'}',
         JS
       end
@@ -153,12 +153,12 @@ module JqgridSupport
     # Support for #grid_wire
     # Sets the pager options
     def grid_wire_pager
-      if @parent.grid_options.has_key?(:pager)
+      if @cell.parent.grid_options.has_key?(:pager)
         return <<-JS
          	pginput: true,
         	pgbuttons: true,
-        	rowList:#{@parent.grid_options[:pager][:rows_options].to_json || '[]'},
-        	rowNum:#{@parent.grid_options[:pager][:rows] || 20},
+        	rowList:#{@cell.parent.grid_options[:pager][:rows_options].to_json || '[]'},
+        	rowNum:#{@cell.parent.grid_options[:pager][:rows] || 20},
         JS
       else
         return <<-JS
@@ -173,7 +173,7 @@ module JqgridSupport
     # Support for #grid_wire
     # Set the options for the navigation bar
     def grid_wire_nav(domid)
-      if @parent.grid_options[:del_button]
+      if @cell.parent.grid_options[:del_button]
         del_function = <<-JS
         function(id){
           if (confirm('Delete: Are you sure?')) {
@@ -188,10 +188,10 @@ module JqgridSupport
         prmDel = {}.to_json
         del_function = "function(){};"
       end
-      if @parent.grid_options[:add_button]
+      if @cell.parent.grid_options[:add_button]
         add_function = <<-JS
         function(){
-    			$.get('#{rurl_for_event(:cellClick)}', {'id':'0', 'pid':$('##{@parent.dom_id}_grid').getGridParam('postData')['pid']}, null, 'script');
+    			$.get('#{rurl_for_event(:cellClick)}', {'id':'0', 'pid':$('##{@cell.parent.dom_id}_grid').getGridParam('postData')['pid']}, null, 'script');
         }
         JS
         prmAdd = {
@@ -204,7 +204,7 @@ module JqgridSupport
       prmEdit = prmSearch = prmView = {}.to_json
       <<-JS
       $('##{domid}').jqGrid('navGrid','##{domid}_pager', 
-      #{{:edit => false, :add => @parent.grid_options[:add_button], :del => @parent.grid_options[:del_button],
+      #{{:edit => false, :add => @cell.parent.grid_options[:add_button], :del => @cell.parent.grid_options[:del_button],
       :addfunc => ActiveSupport::JSON::Variable.new(add_function), :delfunc => ActiveSupport::JSON::Variable.new(del_function),
       :alertcap => 'No record selected', :alerttext => 'You must select a record first.<br />Press Esc to dismiss this warning.',
       :search => false, :refresh => false}.to_json},
