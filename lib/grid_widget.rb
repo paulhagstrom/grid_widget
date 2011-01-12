@@ -20,7 +20,13 @@ module GridWidget
       w = widget(:grid_edit_widget, options[:widget_id], :display, options)
       yield w if block_given?
       w
-    end 
+    end
+    
+    # TODO add support for Boxes https://github.com/Orion98MC/Boxes
+    # def box_configure_form
+    #   @wopts = @options.clone
+    #   render
+    # end
   end
   
   module Helper
