@@ -20,5 +20,6 @@ Example goes here.  Eventually.
 In the meantime, there is an example Rails 3 app that incorporates this widget to show what it can
 do and I how I expected it to be used.
 
+https://github.com/paulhagstrom/grid_widget_example
 
 Copyright (c) 2011 Paul Hagstrom, released under the MIT license
