@@ -139,7 +139,6 @@ class GridEditWidget < Apotomo::Widget
     form = @dom_id + '_form'
     <<-JS
     $('##{form}').css('background-color','#{color}').slideUp('fast');
-    $('##{form}').slideUp('fast');
     JS
   end
 

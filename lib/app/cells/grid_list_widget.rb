@@ -3,9 +3,7 @@ class GridListWidget < Apotomo::Widget
   include AppSupport::Controller
   helper GridWidget::Helper
   helper AppSupport::Helper
-  
-  attr_accessor :parent_id
-  
+    
   # This seemed to get caught up in a cache somewhere, so I moved this into
   # the after_add block.
   # TODO: Try this later
@@ -37,7 +35,7 @@ class GridListWidget < Apotomo::Widget
   # reload the grid in response to :recordUpdated event
   # #grid_reload is defined in jqgrid_support
   def redisplay
-    render :text => grid_reload + "/*redisplay*/"
+    render :text => grid_reload
   end
 
   # respond to grid's request for data (:fetchData event)
@@ -96,7 +94,7 @@ class GridListWidget < Apotomo::Widget
       end
     end
     store_filters = grid_set_post_params(@parent.dom_id, {'filters' => filter_parms.join('|')})
-    render :text => group_style + highlight_active + store_filters + grid_reload + "/*set_filter*/"
+    render :text => group_style + highlight_active + store_filters + grid_reload
   end
   
   private 

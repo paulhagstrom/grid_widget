@@ -186,6 +186,7 @@ module JqgridSupport
         }.to_json
       else
         prmDel = {}.to_json
+        del_function = "function(){};"
       end
       if @parent.grid_options[:add_button]
         add_function = <<-JS
@@ -198,6 +199,7 @@ module JqgridSupport
         }.to_json
       else
         prmAdd = {}.to_json
+        add_function = "function(){};"
       end
       prmEdit = prmSearch = prmView = {}.to_json
       <<-JS
