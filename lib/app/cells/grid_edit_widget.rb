@@ -108,27 +108,42 @@ class GridEditWidget < Apotomo::Widget
     $('##{form}').slideDown('fast');
     $('#ex_#{form}').slideUp('fast', function() { $(this).remove();});
     JS
-    render :text => clone_form + 
-      update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
-        {:container => @dom_id + '_form', :resource => @resource, :record => @record}) +
-      ';' + swap_display
+    render :text => clone_form + update_form_content(@record) + swap_display
+  end
+  
+  def update_form_content(record)
+    update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+      {:container => @dom_id + '_form', :resource => @resource, :record => record}) + ';'
   end
   
   # #form_submitted catches the :formSubmit event from the form (defined in the form_wrapper layout).
   # Updates the record with attributes in the (@dom_id + '_form') hash (default: resource_widget_form)
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
-    if param(:form_action) == 'submit'
-      record = fetch_record
+    if param(:form_action) == 'submit' || param(:form_action) == 'remain'
+      record = fetch_record(false)
       record.update_attributes(param(@dom_id + '_form'))
       record.save
       trigger :recordUpdated
-      render :text => turn_and_deveal_form
+      if param(:form_action) == 'remain'
+        render :text => update_form_content(record) + pulse_form
+      else
+        render :text => turn_and_deveal_form
+      end      
     else
       render :text => turn_and_deveal_form('#FF8888')
     end
   end
   
+  # Forms the Javascript that will pulse the background color of the form (signaling save)
+  def pulse_form(color = '#88FF88')
+    form = @dom_id + '_form'
+    <<-JS
+    var origColor = $('##{form}').css('background-color');
+    $('##{form}').animate({backgroundColor: '#{color}'}, 100).animate({backgroundColor:origColor}, 1000);
+    JS
+  end
+
   # Forms the Javascript that will change the background color of the form and slide it away.
   # This is included in the responses to hitting update or cancel.
   # The color is supposed to signal whether it is an update or a cancel (default is green for update).
@@ -176,18 +191,25 @@ class GridEditWidget < Apotomo::Widget
   
   # #fetch_record loads either a new record or the record for which an ID was passed.
   # TODO: Should #fetch_record be private?  
-  def fetch_record
+  def fetch_record(use_scope = true)
     if param(:id).to_i > 0
       record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
     else
-      if @where
-        record = (Object.const_get @resource.classify).where(@where.call(param(:pid))).new
+      if @where && use_scope
+        record = before_add((Object.const_get @resource.classify).where(@where.call(param(:pid))).new)
       else
-        record = (Object.const_get @resource.classify).new
+        record = before_add((Object.const_get @resource.classify).new)
       end
     end
   end
 
+  # #before_add is a hook that allows you to set certain things (e.g., logged in user) in
+  # the empty record just after it is created.  Override as needed.  Called both when the form
+  # is generated and when the form is submitted with a zero id
+  def before_add(record)
+    record
+  end
+  
   # Add a column to the column model for the grid.  This will include things like the label and field, any
   # special display options.  The +field+ option is required, and several things are guessed from that
   # if not provided.  This is intended to be called as part of the configuration block of grid_edit_widget.
