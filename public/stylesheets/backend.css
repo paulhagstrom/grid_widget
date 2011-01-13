@@ -14,16 +14,43 @@ table.layout_table td {
 	vertical-align:top;
 }
 
+table.filter_container {
+	width:100%;
+	border-spacing:1px;
+	border:0px;
+	margin:0px;
+}
+table.filter_container td {
+	border:0px;
+	margin:0px;
+}
+table.filter_container td.filter_label {
+	vertical-align: middle;
+	font-family: arial, verdana, sans-serif;
+	font-size:10pt;
+	background-color: #CCCCCC;
+	color:#880000;
+	text-align:right;
+}
+table.filter_container td.filter_contents {
+	vertical-align: top;
+	background-color: #CCCCCC;
+}
+
 table.filter_table {
 	width:100%;
 	font-family: arial, verdana, sans-serif;
 	font-size:10pt;
+	margin:0px;
+	padding:0px;
+	border-spacing:1px;
 }
 table.filter_table td {
-	vertical-align:top;
+	vertical-align:middle;
 	text-align:center;
 }
-p.filter_label {
+
+/*.filter_label p {
 	width:100%;
 	font-family: arial, verdana, sans-serif;
 	font-size:10pt;
@@ -33,7 +60,7 @@ p.filter_label {
 	color:#880000;
 	text-align:center;
 }
-
+*/
 .filter {
 	cursor:pointer;
 }

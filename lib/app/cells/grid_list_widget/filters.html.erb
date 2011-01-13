@@ -1,21 +1,31 @@
-<% @cell.parent.filter_sequence.each do |filter_group| %>
+<% if @cell.parent.filter_sequence.size > 0 %>
+<table class="filter_container">
+	<% @cell.parent.filter_sequence.each do |filter_group| %>
 	<% f = @cell.parent.filters[filter_group] %>
-	<p class="filter_label"><%= f[:options][:name] %></p>
-	<table class="filter_table">
-		<tr>
-		<% col = 0 %>
-		<% col_max = f[:options][:columns] || 6 %>
-		<% f[:sequence].each do |sf| %>
-			<% if (col += 1) > col_max %>
-				</tr>
+	<tr>
+		<td class="filter_label">
+		<%= f[:options][:name] %>
+		</td>
+		<td class="filter_contents">
+			<table class="filter_table">
 				<tr>
-				<% col = 1 %>
-			<% end %>
-			<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @cell.parent.dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
-		<% end %>
-		<% while (col += 1) <= col_max %>
-			<td class="filter_empty">&nbsp;</td>
-		<% end %>
-		</tr>
-	</table>
+				<% col = 0 %>
+				<% col_max = f[:options][:columns] || 6 %>
+				<% f[:sequence].each do |sf| %>
+					<% if (col += 1) > col_max %>
+						</tr>
+						<tr>
+						<% col = 1 %>
+					<% end %>
+					<td class="filter filter_onf filter_<%= filter_group %>" id="filter_<%= @cell.parent.dom_id %>_<%= filter_group %>_<%= sf %>"><%= f[:filters][sf][:name] %></td>
+				<% end %>
+				<% while (col += 1) <= col_max %>
+					<td class="filter_empty">&nbsp;</td>
+				<% end %>
+				</tr>
+			</table>
+		</td>
+	</tr>
+	<% end %>
+</table>
 <% end %>
