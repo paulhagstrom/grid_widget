@@ -75,6 +75,7 @@ class GridEditWidget < Apotomo::Widget
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
   attr_reader :form_only
+  attr_reader :list_widget_id
   
   after_initialize :setup
 
@@ -133,12 +134,14 @@ class GridEditWidget < Apotomo::Widget
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
     if param(:form_action) == 'submit' || param(:form_action) == 'remain'
-      record = fetch_record(false)
-      record.update_attributes(param(@dom_id + '_form'))
-      record.save
+      @record = fetch_record(false)
+      @record.update_attributes(param(@dom_id + '_form'))
+      @record.save
       trigger :recordUpdated
       if @form_only || param(:form_action) == 'remain'
-        render :text => update_form_content(record) + pulse_form
+        # TODO: Consider whether I want to make it an option to redraw everything. This redraws the children too.
+        # render :text => update_form_content(@record) + pulse_form
+        render :text => pulse_form
       else
         render :text => turn_and_deveal_form
       end      
@@ -202,7 +205,9 @@ class GridEditWidget < Apotomo::Widget
   end
   
   # #fetch_record loads either a new record or the record for which an ID was passed.
-  # TODO: Should #fetch_record be private?  
+  # TODO: Should #fetch_record be private?
+  # The use_scope parameter is set to false on the return from a form submit, since in that case the ID is for
+  # the targeted resource and not for the parent's resource.
   def fetch_record(use_scope = true)
     if param(:id).to_i > 0
       if @form_only && use_scope
@@ -342,6 +347,7 @@ class GridEditWidget < Apotomo::Widget
   def embed_widget(where, widget)
     self << widget
     widget.where = where
+    self.respond_to_event :recordUpdated, :from => widget.name, :with => :redisplay, :on => self.list_widget_id
   end
   
   # #get_request_parameters inspects the request parameters, mostly to sanitize and update
@@ -421,7 +427,8 @@ class GridEditWidget < Apotomo::Widget
     
     unless @form_only
       # create the child list widget
-      self << widget(:grid_list_widget, @dom_id + '_list', :display)
+      @list_widget_id = @dom_id + '_list'
+      self << widget(:grid_list_widget, @list_widget_id, :display)
     end
   end
 end
