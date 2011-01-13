@@ -62,6 +62,7 @@
 class GridEditWidget < Apotomo::Widget
   include GridWidget::Controller
   include AppSupport::Controller
+  helper GridWidget::Helper
   
   attr_accessor :includes
   attr_accessor :grid_options
@@ -73,6 +74,7 @@ class GridEditWidget < Apotomo::Widget
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
+  attr_reader :form_only
   
   after_initialize :setup
 
@@ -85,7 +87,17 @@ class GridEditWidget < Apotomo::Widget
   
   # Draw the empty form (and the child list widget, which will render first)
   def display
-    render
+    if @form_only
+      if param(:id).to_i > 0
+        @record = fetch_record
+        render :view => 'form/' + @form_template, :layout => 'form_only_wrapper', :locals =>
+            {:container => @dom_id + '_form', :resource => @resource, :record => @record}
+      else
+        render :view => :display_form_only
+      end
+    else
+      render
+    end
   end
   
   # #display_form catches the :recordSelected event that originates from the list #cell_click method.
@@ -125,7 +137,7 @@ class GridEditWidget < Apotomo::Widget
       record.update_attributes(param(@dom_id + '_form'))
       record.save
       trigger :recordUpdated
-      if param(:form_action) == 'remain'
+      if @form_only || param(:form_action) == 'remain'
         render :text => update_form_content(record) + pulse_form
       else
         render :text => turn_and_deveal_form
@@ -193,7 +205,11 @@ class GridEditWidget < Apotomo::Widget
   # TODO: Should #fetch_record be private?  
   def fetch_record(use_scope = true)
     if param(:id).to_i > 0
-      record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
+      if @form_only && use_scope
+        record = (Object.const_get @resource.classify).includes(@includes).find(@form_only.call(param(:id)))
+      else
+        record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
+      end
     else
       if @where && use_scope
         record = before_add((Object.const_get @resource.classify).where(@where.call(param(:pid))).new)
@@ -384,7 +400,9 @@ class GridEditWidget < Apotomo::Widget
   # Called by after_initialize, will set the defaults prior to executing the configuration block.
   def setup(*)
     @resource = param(:resource)
-
+    @form_only = param(:form_only)
+    @where = param(:where)
+    
     @dom_id = @resource + '_widget'
 
     @grid_options = {}
@@ -401,7 +419,9 @@ class GridEditWidget < Apotomo::Widget
     # This can be overridden in the configuration, but defaults to 'authors' for AuthorsController
     @form_template = parent_controller.class.name.underscore.gsub(/_controller$/,'')
     
-    # create the child list widget
-    self << widget(:grid_list_widget, @dom_id + '_list', :display)
+    unless @form_only
+      # create the child list widget
+      self << widget(:grid_list_widget, @dom_id + '_list', :display)
+    end
   end
 end
