@@ -102,10 +102,12 @@ class GridEditWidget < Apotomo::Widget
       end
     end
   end
-  
+    
   # #display_form catches the :recordSelected event that originates from the list #cell_click method.
   # Emits the JS to populate and reveal the form.
   def display_form
+    # The 1-arity form of this, which is supposed to retrieve the event, isn't working for me.
+    # fetch_record makes use of @opts[:event]
     @record = fetch_record
     # Make a new form div so we can slide away the old one and swap ids
     # (This all relies on the id of the form corresponding to an enclosing div, incidentally)
@@ -127,7 +129,8 @@ class GridEditWidget < Apotomo::Widget
   end
   
   def update_form_content(record)
-    update(:selector => @dom_id + '_form', :view => @form_template, :layout => 'form_wrapper', :locals =>
+    update(:selector => @dom_id + '_form', :view => @form_template,
+      :layout => @form_only ? 'form_wrapper' : 'form_only_wrapper', :locals =>
       {:container => @dom_id + '_form', :resource => @resource, :record => record}) + ';'
   end
   
@@ -139,6 +142,9 @@ class GridEditWidget < Apotomo::Widget
       @record = fetch_record(false)
       @record.update_attributes(param(@dom_id + '_form'))
       @record.save
+      if select_options = after_form_update(@record)
+        trigger :recordSelected, select_options
+      end
       trigger :recordUpdated
       if @form_only || param(:form_action) == 'remain'
         # TODO: Consider whether I want to make it an option to redraw everything. This redraws the children too.
@@ -150,6 +156,13 @@ class GridEditWidget < Apotomo::Widget
     else
       render :text => turn_and_deveal_form('#FF8888')
     end
+  end
+
+  # #before_add is a hook that allows you to react to record creation (e.g., create a child record)
+  # just after it is added (when the id is available).  Override as needed.
+  # If something is returned, it is treated as a new id to select.
+  def after_form_update(record)
+    return nil
   end
   
   # Forms the Javascript that will pulse the background color of the form (signaling save)
@@ -211,15 +224,22 @@ class GridEditWidget < Apotomo::Widget
   # The use_scope parameter is set to false on the return from a form submit, since in that case the ID is for
   # the targeted resource and not for the parent's resource.
   def fetch_record(use_scope = true)
-    if param(:id).to_i > 0
+    # If the parent already has an id, use it.
+    # If the event sent us an id or pid, use it, otherwise go for the request parameters
+    recid = (@form_only && parent.record && parent.record.id) ? parent.record.id :
+      (@opts[:event] && @opts[:event].data[:id].to_i > 0) ? @opts[:event].data[:id].to_i : 
+      param(:id).to_i    
+    pid = (@opts[:event] && @opts[:event].data[:pid].to_i > 0) ? @opts[:event].data[:pid].to_i :
+      param(:pid).to_i
+    if recid > 0
       if @form_only && use_scope
-        record = (Object.const_get @resource.classify).includes(@includes).find(@form_only.call(param(:id)))
+        record = (Object.const_get @resource.classify).includes(@includes).find(@form_only.call(recid))
       else
-        record = (Object.const_get @resource.classify).includes(@includes).find(param(:id))
+        record = (Object.const_get @resource.classify).includes(@includes).find(recid)
       end
     else
       if @where && use_scope
-        record = before_add((Object.const_get @resource.classify).where(@where.call(param(:pid))).new)
+        record = before_add((Object.const_get @resource.classify).where(@where.call(pid)).new)
       else
         record = before_add((Object.const_get @resource.classify).new)
       end
@@ -350,6 +370,7 @@ class GridEditWidget < Apotomo::Widget
     self << widget
     widget.where = where
     self.respond_to_event :recordUpdated, :from => widget.name, :with => :redisplay, :on => self.list_widget_id
+    self.respond_to_event :recordSelected, :from => widget.name, :with => :display_form, :on => self.name
   end
   
   # #get_request_parameters inspects the request parameters, mostly to sanitize and update
@@ -362,7 +383,9 @@ class GridEditWidget < Apotomo::Widget
   # TODO: Investigate using real arrays, it would be simpler than having to parse this much.
   def get_request_parameters
     return_filters = {}
-    return_params = param(:pid) ? {:pid => param(:pid)} : {}
+    # If the parent has a record already, use it in preference to the request parameter
+    pid = (parent.is_a?(GridEditWidget) && parent.record) ? parent.record.id : param(:pid)
+    return_params = pid ? {:pid => pid} : {}
     if param(:filters)
       # parse the filters parameter
       filters = []

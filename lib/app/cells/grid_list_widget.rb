@@ -155,6 +155,7 @@ class GridListWidget < Apotomo::Widget
     end
     
     # limits (in case we are, e.g., dependent)
+    # q = q.where(parent.where.call(@opts[:event].data[:pid])) if parent.where && @opts[:event].data[:pid]
     q = q.where(parent.where.call(my_params[:pid])) if parent.where && my_params[:pid]
 
     # TODO: Make this work.
