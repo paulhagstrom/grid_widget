@@ -158,7 +158,7 @@ class GridEditWidget < Apotomo::Widget
     end
   end
 
-  # #before_add is a hook that allows you to react to record creation (e.g., create a child record)
+  # #after_form_update is a hook that allows you to react to record creation (e.g., create a child record)
   # just after it is added (when the id is available).  Override as needed.
   # If something is returned, it is treated as a new id to select.
   def after_form_update(record)
