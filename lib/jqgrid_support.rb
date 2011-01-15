@@ -18,13 +18,17 @@ module JqgridSupport
     # grid_json_row processes one record for #grid_json above.
     # This is the place where :custom field methods are used.
     #
-    # Using eval feels funny here, but it allows me to do fairly easy associations like 'record.person.first_name'
-    # I faked a 'self' method on the record for use when the custom function should get the whole record.
-    # This is called from GridListWidget, so @cell.parent should refer to a GridEditWidget
+    # Using eval allows me to do fairly easy associations like 'record.person.first_name'
+    # If the custom takes two parameters, the second one passed will be the record.
     def grid_json_row(record)
       parent.columns.map {|c|
-        field_value = eval 'record.' + (c[:field] == 'self' ? 'tap {|x|}' : c[:field]) rescue 'Unset'
-        c[:custom] ? parent.send(c[:custom], field_value) : field_value
+        field_value = eval 'record.' + c[:field] rescue 'Unset'
+        c[:custom] ?
+          ((parent.method(c[:custom]).arity == 2) ?
+            parent.send(c[:custom], field_value, record) :
+            parent.send(c[:custom], field_value)
+          ) :
+          field_value
         }
     end
     

@@ -68,6 +68,7 @@ class GridEditWidget < Apotomo::Widget
   attr_accessor :grid_options
   attr_accessor :dom_id
   attr_accessor :form_template
+  attr_accessor :orphan_template
   attr_accessor :where
   attr_accessor :record
   attr_reader :resource
@@ -88,16 +89,17 @@ class GridEditWidget < Apotomo::Widget
   
   # Draw the empty form (and the child list widget, which will render first)
   def display
+    my_params = get_request_parameters
     if @form_only
-      if param(:id).to_i > 0
-        @record = fetch_record
-        render :view => 'form/' + @form_template, :layout => 'form_only_wrapper', :locals =>
-            {:container => @dom_id + '_form', :resource => @resource, :record => @record}
-      else
-        render :view => :display_form_only
-      end
+      @record = fetch_record
+      render :view => @form_template, :layout => 'form_only_wrapper', :locals =>
+          {:container => @dom_id + '_form', :resource => @resource, :record => @record}
     else
-      render
+      if @where && !my_params[:pid]
+        render :view => @orphan_template
+      else
+        render
+      end
     end
   end
   
@@ -125,7 +127,7 @@ class GridEditWidget < Apotomo::Widget
   end
   
   def update_form_content(record)
-    update(:selector => @dom_id + '_form', :view => 'form/' + @form_template, :layout => 'form_wrapper', :locals =>
+    update(:selector => @dom_id + '_form', :view => @form_template, :layout => 'form_wrapper', :locals =>
       {:container => @dom_id + '_form', :resource => @resource, :record => record}) + ';'
   end
   
@@ -424,6 +426,8 @@ class GridEditWidget < Apotomo::Widget
     # Guesses that you will be using the form template matching the name of your controller
     # This can be overridden in the configuration, but defaults to 'authors' for AuthorsController
     @form_template = parent_controller.class.name.underscore.gsub(/_controller$/,'')
+    # The orphan template is used when a parent record is needed but not selected
+    @orphan_template = 'display_orphan'
     
     unless @form_only
       # create the child list widget
