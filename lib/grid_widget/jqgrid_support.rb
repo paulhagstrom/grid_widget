@@ -1,0 +1,234 @@
+# The JqgridSupport module is the place where all of the jqGrid-specific code resides.
+# The idea here is that I could someday create a parallel module to support a different grid.
+#
+# The JqgridSupport module has a number of critical methods that will need to be
+# converted if another grid is to be supported.
+#
+# * +grid_json+ returns the table data for display in the format the grid expects.
+# * +grid_reload+ causes the grid to refresh itself (and re-request the data).
+# * +grid_set_post_params+ stores information in the grid's user space.
+# * +grid_place+ emits the HTML for the basic table, before the grid is attached.
+# * +grid_wire+ attaches the grid to the HTML table.
+#
+# Here, there are several other methods as well that factor out various parts of the
+# +grid_wire+ method.  Most of the grid-specific parameters apart from DOM id are
+# dealt with in +grid_wire+, and it should be clear when re-writing that method how
+# to translate the options for a different grid.
+module GridWidget
+  module JqgridSupport
+    module ControllerMethods
+  
+      # grid_json creates the hash that, when submitted to .to_json, will be in the form
+      # that jqGrid requires for its remote fetch.  It is called by GridListWidget#send_json.
+      #
+      # TODO: This needs to have paging support added
+      # TODO: total is supposed to be total pages, records is total number of records.
+      def grid_json(rows)
+        grid_rows = rows.inject([]) {|a,r| a << {:id => r.id, :cell => grid_json_row(r)}; a} 
+        {:total => 1, :page => 1, :records => rows.size, :rows => grid_rows}
+      end
+  
+      # grid_json_row processes one record for #grid_json above.
+      # This is the place where :custom field methods are used.
+      #
+      # Using eval allows me to do fairly easy associations like 'record.person.first_name'
+      # If the custom takes two parameters, the second one passed will be the record.
+      def grid_json_row(record)
+        parent.columns.map {|c|
+          field_value = eval 'record.' + c[:field] rescue 'Unset'
+          c[:custom] ?
+            ((parent.method(c[:custom]).arity == 2) ?
+              parent.send(c[:custom], field_value, record) :
+              parent.send(c[:custom], field_value)
+            ) :
+            field_value
+          }
+      end
+    
+      # Redraw the grid (re-request the dataset)
+      def grid_reload(domid = nil)
+        domid ||= parent.dom_id
+        "$('##{domid}_grid').trigger('reloadGrid');"
+      end
+    
+      # grid_set_post_params stores the passed hash in jqGrid's postData hash.  This is information
+      # that will be sent along with a :fetchData event when it goes to retrieve the data.
+      #
+      # This is called by GridListWidget#set_filter, which is the receiver for clicks on the filter array.
+      #
+      # This assumes that parms is a Hash, and it will not replace the entire postData assoc array, 
+      # but only those elements whose keys are mentioned in parms.  (This is so changes in filters don't
+      # necessarily clobber selected records and vice-versa.)
+      #
+      # TODO: This should probably be pulled apart so only the jqGrid logic is here
+      def grid_set_post_params(wid, parms)
+        set_values = parms.inject('') {|s,(k,v)| s += "gpd['#{k}']=#{v.to_json};"; s}
+        <<-JS
+        var gpd = $('##{wid}_grid').getGridParam('postData');
+        #{set_values}
+        $('##{wid}_grid').setGridParam({'postData': gpd});
+        JS
+      end
+    
+    end
+
+    module HelperMethods
+    
+      # support for #wire_filters (defined in grid_widget.rb, GridWidget::Helper)
+      # sets up a Javascript function specific to this grid that will append a new filter
+      # selection to the existing filter data stored in jqGrid's postData hash, and return
+      # it (to be re-stored into the postData hash).
+      # TODO: This would be better to define independently, rather than defining it per-grid.
+      def grid_define_get_filter_parms
+        raw <<-JS
+        function build_filter_#{@cell.parent.dom_id}(g,v){
+          var gpd = $('##{@cell.parent.dom_id}_grid').getGridParam('postData');
+          gpd['filters'] = gpd['filters'] + '|' + g + '-' + v;
+          return gpd;
+        }
+        JS
+      end
+
+      # provides the HTML anchor for the table and pager, which jgGrid fills in Javascryptically.
+      # presumption is that you will want to "wire" it at the same time (add the JS watchers),
+      # but send false for wire_too if you don't.
+      def grid_place(domid = 'list_grid', wire_too = true)
+        x = raw <<-HTML
+    		<table id="#{domid}" class="scroll layout_table" cellpadding="0" cellspacing="0"></table>
+    		<div id="#{domid}_pager" class="scroll" style="text-align:center;"></div>
+    		HTML
+        x + grid_wire(domid) if wire_too
+      end
+
+      # grid_wire calls the jgGrid plugin and sets all of the initial parameters.
+      def grid_wire(domid = 'list_grid')
+        javascript_tag <<-JS
+        	$("##{domid}").jqGrid({
+        	  #{grid_wire_cell_select}
+        		url:'#{rurl_for_event(:fetchData)}',
+        		datatype:'json',
+        		mtype: 'GET',
+        		colModel:[#{grid_columns}],
+        		rowNum:#{@cell.parent.grid_options[:rows] || 10},
+        		height:#{@cell.parent.grid_options[:height] || 400},
+        		//scrollrows:true,
+        		//altRows:false,
+            // autowidth: true, 
+            pager: '##{domid}_pager',
+            #{grid_wire_pager}
+            #{grid_wire_default_sort}
+            #{grid_wire_set_id}
+        		viewrecords: true,
+        		caption: '#{@cell.parent.grid_options[:title] || @cell.parent.resource.pluralize.humanize}'
+        	});
+        #{grid_wire_nav(domid)}
+        JS
+      end
+    
+      # Support for #grid_wire
+      # limits to passed :id if parent's id is set
+      def grid_wire_set_id
+        return '' unless @cell.parent.where && @cell.parent.parent.record && @cell.parent.parent.record.id
+        <<-JS
+        postData: {'pid':#{@cell.parent.parent.record.id}},
+        JS
+      end
+    
+      # Support for #grid_wire
+      # sets the click action on the table cells.
+      def grid_wire_cell_select
+        form = @cell.parent.name + '_form'
+        i, form_columns = @cell.parent.columns.inject([0,[]]) {|a,c| a[1] << a[0] if c[:open_panel] || c[:inplace_edit]; a[0] += 1; a }
+        form_columns_js = form_columns.size > 0 ? "(col in {'#{form_columns.join("':'','")}':''})" : 'true'
+        <<-JS
+        onCellSelect: function(rowid,col,content,event) {
+          if (($('##{form}').css('display') == 'block') || (#{form_columns_js})) {
+      			$.get('#{rurl_for_event(:cellClick)}', {'id':rowid, 'col':col, 'pid':'0'}, null, 'script');
+    			}
+        },
+        JS
+      end
+  
+      # Support for #grid_wire
+      # Return the Javascript columns model (with just the jQGrid options)
+      def grid_columns
+        omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle]
+        (@cell.parent.columns.map {|c| (c.dup.delete_if{|k,v| omit_options.include?(k)}).to_json}).join(',')
+      end
+  
+      # Support for #grid_wire
+      # Sets the default sort if one is defined
+      def grid_wire_default_sort
+        if ds = @cell.parent.default_sort
+          <<-JS
+          sortname: '#{@cell.parent.columns[@cell.parent.sortable_columns[ds[0]]][:index]}',
+          sortorder: '#{ds[1] ? 'asc' : 'desc'}',
+          JS
+        end
+      end
+  
+      # Support for #grid_wire
+      # Sets the pager options
+      def grid_wire_pager
+        if @cell.parent.grid_options.has_key?(:pager)
+          return <<-JS
+           	pginput: true,
+          	pgbuttons: true,
+          	rowList:#{@cell.parent.grid_options[:pager][:rows_options].to_json || '[]'},
+          	rowNum:#{@cell.parent.grid_options[:pager][:rows] || 20},
+          JS
+        else
+          return <<-JS
+           	pginput: false,
+          	pgbuttons: false,
+          	rowList: [],
+          	rowNum: -1,
+          JS
+        end
+      end
+  
+      # Support for #grid_wire
+      # Set the options for the navigation bar
+      def grid_wire_nav(domid)
+        if @cell.parent.grid_options[:del_button]
+          del_function = <<-JS
+          function(id){
+            if (confirm('Delete: Are you sure?')) {
+        			$.get('#{rurl_for_event(:deleteRecord)}', {'id':id}, null, 'script');
+            }
+          }
+          JS
+          prmDel = {
+            :url => rurl_for_event(:deleteRecord)
+          }.to_json
+        else
+          prmDel = {}.to_json
+          del_function = "function(id){}"
+        end
+        if @cell.parent.grid_options[:add_button]
+          add_function = <<-JS
+          function(){
+      			$.get('#{rurl_for_event(:cellClick)}', {'id':'0', 'pid':$('##{@cell.parent.dom_id}_grid').getGridParam('postData')['pid']}, null, 'script');
+          }
+          JS
+          prmAdd = {
+            :url => rurl_for_event(:deleteRecord)
+          }.to_json
+        else
+          prmAdd = {}.to_json
+          add_function = "function(){}"
+        end
+        prmEdit = prmSearch = prmView = {}.to_json
+        <<-JS
+        $('##{domid}').jqGrid('navGrid','##{domid}_pager', 
+        #{{:edit => false, :add => @cell.parent.grid_options[:add_button], :del => @cell.parent.grid_options[:del_button],
+        :addfunc => ActiveSupport::JSON::Variable.new(add_function), :delfunc => ActiveSupport::JSON::Variable.new(del_function),
+        :alertcap => 'No record selected', :alerttext => 'You must select a record first.<br />Press Esc to dismiss this warning.',
+        :search => false, :refresh => false}.to_json},
+        #{prmEdit},#{prmAdd},#{prmDel},#{prmSearch},#{prmView});
+        JS
+      end
+   
+    end
+  end
+end

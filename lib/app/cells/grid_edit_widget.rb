@@ -1,10 +1,17 @@
-# GridEditWidget is the main widget, has the form and has GridListWidget as a child.
+# GridEditWidget is a widget that displays a form and handles submission.
+# Under normal circumstances, it will also have a GridListWidget as a child.
 #
-# This can be used in a controller in the following way, where 'contact' is the name of
-# a resource.  #grid_edit_widget is defined in grid_widget.rb.
+# The basic use case would be to have a list of records (displayed by the child GridListWidget)
+# which allows editing of individual records as they are selected.
 #
-#   include JqgridSupport::Controller
+# To use a GridEditWidget, something like the following should be placed in the controller.
+# Each GridEditWidget has a "resource" (which is basically the model where the data being
+# edited and listed comes from).  A few different names are derived from the resource name,
+# which can be individually set if necessary, but in the most basic form just the resource
+# can be named.  The resource should be the name of a model, in underscore form.
+#
 #   include Apotomo::Rails::ControllerMethods
+#   include GridWidget::Controller
 # 
 #   has_widgets do |root|
 #     root << grid_edit_widget('contact') do |c|
@@ -12,37 +19,67 @@
 #     end
 #   end
 #
-# The resource should be the name of a model, in underscore form.  It is used
-# to retrieve the records for display.  A couple of further options can be
-# placed after resource as parameters.  The widget_id will be resource_widget
-# unless :widget_id is set explicitly.  You can pass other options, which will be
-# passed on to apotomo's widget, and could, for example, be used in app-defined mixins.
+# In the example above, the model will be +Contact+, and it will create a widget with
+# an id of +contact_widget+.  To choose a different widget_id, pass in a +:widget_id+
+# parameter.  Other options passed to +#grid_edit_widget+ will be passed on to the
+# widget for storage in its parameters/options.
+# +#grid_edit_widget+ is defined in +grid_widget.rb+.
 #
 #     root << grid_edit_widget('contact', :widget_id => 'wid', :beer => :insufficient) do |c|
 #       [...configuration options...]
 #     end
 #
-# Configuration options come in several types:
-#   Grid DOM id:: Use dom_id (attribute), defaults to resource_widget (like widget_id)
-#   Grid options:: Use grid_options (attribute)
-#   Column options:: Use add_column
-#   Query options:: Use includes (attribute)
-#   Filter options:: Use add_filter_group and add_filter to create
-#   Custom output methods:: Define as usual in the passed block
-#   Form template name:: Use form_template (attribute),
-#  looks in app/cells/grid_form_widget/form/ for {form_template}.html.erb, and
-#  defaults to {controller}.
-#   Where clause for sub-widgets:: Use where (attribute), define with lambda expecting parent id.
+# Most configuration options have a sensible default, so for a very simple widget you
+# can get away with doing nothing but defining the columns.  In that case, it will expect
+# to find the template for the form in app/cells/grid_edit_widget/[resource].html.erb.
+# That is:
 #
-# They can all be set in a single configuration block and intermixed, though order
-# does matter when defining columns and filters.
+#   has_widgets do |root|
+#     root << grid_edit_widget('contact') do |c|
+#       c.add_column('code')
+#       c.add_column('name')
+#     end
+#   end
 #
-# For example:
+# Several basic configuration options are simply attributes that can be set in the
+# configuration block.
+#
+# Grid DOM id:: +dom_id+ (attribute), defaults to resource_widget (like widget_id)
+# Grid options:: +grid_options+ (attribute)
+# Query options:: +includes+ (attribute), defaults to nothing, but if set will cause
+#   eager loading, for use in custom output methods.
+# Form template name:: +form_template+ (attribute),
+#   looks in app/cells/grid_form_widget/form/ for {form_template}.html.erb, and
+#   defaults to {controller}.
+# Where clause for sub-widgets:: +where+ (attribute), define with lambda expecting parent id.
+#   Defaults to +nil+, meaning that the widget is independent.
+#
+# There are a few configuration methods that are defined for the purpose of building
+# up the column and filter models.  These are documented more fully by their own definitions.
+#
+# Column options:: +#add_column# to define the columns in the grid
+# Filter options:: +#add_filter_group# and +#add_filter# to create filters for the grid
+#
+# It is also possible in the configuration block to define custom output methods
+# used by the grid to format the display.  See the example below for one such definition.
+# They are referred to in the column model, when a +:custom+ parameter is passed.
+# There are a couple of these methods already predefined here that can be used.
+# 
+# * :custom_yn (for booleans, display 'Yes' if true otherwise 'No')
+# * :custom_check (like :custom_yn, but displays a checkmark or nothing)
+# * :custom_abbrev (for long strings, cuts it off at 20 characters and provides ellipses)
+#
+# There are also a couple of hooks that can be overridden within the configuration block,
+# discussed more below.  Obvious candidates for this are +#fetch_record+ and 
+# +#after_form_update+.
+#
+# The configuration options can all be set in a single configuration block and intermixed,
+# though order does matter when defining columns and filters.
 #
 #   has_widgets do |root|
 #     root << grid_edit_widget('contact') do |c|
 #       c.grid_options {:title => 'Contacts list'}
-#       c.has_includes :categories
+#       c.includes :categories
 #       c.add_column('name', :custom => :custom_name)
 #       def c.custom_name(name)
 #         "[#{name}]"
@@ -53,16 +90,97 @@
 #     end
 #   end
 #
-# Columns can have custom output methods, defined in the configuration block.
-# There are a couple of these methods already defined here that can be used.
-# 
-# * :custom_yn (for booleans, display 'Yes' if true otherwise 'No')
-# * :custom_check (like :custom_yn, but displays a checkmark or nothing)
-# * :custom_abbrev (for long strings, cuts it off at 20 characters and provides ellipses)
+# GridEditWidgets can contain other GridEditWidgets. This would arise, for example,
+# if you are editing a user model which might have many contact records.  In the
+# form for the user widget, you might have a contact widget that displays the contacts
+# for the displayed user and allows editing of the contacts.  To accomplish this,
+# the +#embed_widget+ method should be called.  An embedded widget is usually dependent
+# on the parent selection (so, e.g., we only want the contacts from the selected user),
+# so a where clause is required when embedding the widget that will narrow the scope to
+# just the relevant records.  The where clause is a lambda function which will provide
+# this scope when passed the id of the parent selection (what is returned is handed
+# off to ActiveRecord's +where+ method, so what is returned should be a Hash).
+# For example:
+#
+#   c.embed_widget lambda {|x| {:user_id => x}}, contact_widget
+#
+# The procedure above is used to embed widgets for +has_many+ relations.
+# It is also possible to embed a GridWidget for a +belongs_to+ relation, in which case
+# you want a widget that does not have an attached list.  The use case envisioned here
+# is one where, say, a profile record belongs_to user, and the main widget has profile
+# as its resource. When a profile is being edited, the user fields can also be on the
+# screen for editing.  And, when a new profile is being created, these can be used to
+# create a new user record.  To set this up, +#grid_edit_widget+ should be sent a
+# +:form_only+ parameter, which is a lambda function returning the id of the parent
+# when passed the id of the child.  For example:
+#
+#   user_widget = grid_edit_widget('user', :form_only => lambda {|x| Profile.find(x).user_id}) do ...
+#
+# This should then be embedded using embed_widget without a where clause:
+#
+#   c.embed_widget nil, user_widget
+#
+# If a new record is being added in this situation, and no parent record is selected,
+# then any other child widgets will render #display_orphan.html.erb#, which basically
+# says that you need a parent record before you can start adding children.  In this
+# example, if you create a new profile, the first step is to create a user that it
+# belongs to, before you can start creating contacts for the user.  You can point to
+# your own orphan template (to provide more customized instructions) by setting the
+# #orphan_template# option.  This will be sought for in the application views directory.
+#
+#   c.orphan_template = 'contacts_orphan'
+#
+# This situation where a form embeds a widget corresponding to a belongs_to association
+# also may lead one to want to attach certain actions to record creation.  This might
+# also arise if you want to automatically set certain fields (like filling in the author
+# of a comment posting).  The suggested approach for this is to override +#fetch_record+
+# to do something like the following, which will check to see if a record that would have
+# been added to the user table already exists, and will load the existing record instead
+# if so.
+#
+#   def c.fetch_record(use_scope = true, attributes = {})
+#     record = super(use_scope, attributes)
+#     if record.new_record? && (users = User.where({:username => record.username}).all).size > 0
+#       record = users.first
+#     end          
+#     record
+#   end
+#
+# The +#fetch_record+ method needs to accept the +use_scope+ and +attributes+ parameters,
+# and return the record (possibly a +new+ record for the model), but most of the basic
+# functionality can be handled by +super+.
+#
+# Once a new record is added, the +#after_form_update+ method is called, and this can
+# be overridden if one wants to, e.g., add certain child records once the parent is
+# created.  +#after_form_update+ has access to the id, whereas +#fetch_record+ doesn't.
+# So, for example, if a default contact record should be added once a new user is created,
+# you could do this:
+#
+#   def c.after_form_update(record, was_new, form_action)
+#     profile = Profile.where(:user_id => record.id).first
+#     if was_new
+#       new_contact = Contact.create(:user_id => record.id,
+#         :data => "#{record.username}@example.com")
+#     end
+#     return {:pid => record.id, :id => profile.id}
+#   end
+#
+# The +#after_form_update+ method must accept the record, a boolean +was_new+ flag that
+# will be true if the record has just been added (and false if this was an edit of an
+# existing record), and the string +form_action+ which will reflect which button was
+# pressed on the form (this code will never be called if the button pressed was 'cancel',
+# but it is possible to add custom buttons that might be used to affect the flow of control
+# here).  If +#after_form_update+ returns something other than +nil+ then a +recordSelected+
+# event is triggered with the return value.
+# TODO: This is a place where things are kind of clunky.  It works for what I was trying
+# to do, but the retrieval of the profile.id is fragile and I want to rethink how this works.
+#
 class GridEditWidget < Apotomo::Widget
-  include GridWidget::Controller
-  include AppSupport::Controller
-  helper GridWidget::Helper
+  include GridWidget::ControllerMethods
+  include GridWidget::ConfigMethods
+  include GridWidget::CustomDisplayMethods
+  include GridWidget::AppSupport::ControllerMethods
+  helper GridWidget::HelperMethods
   
   attr_accessor :includes
   attr_accessor :grid_options
@@ -253,113 +371,7 @@ class GridEditWidget < Apotomo::Widget
       end
     end
   end
-  
-  # Add a column to the column model for the grid.  This will include things like the label and field, any
-  # special display options.  The +field+ option is required, and several things are guessed from that
-  # if not provided.  This is intended to be called as part of the configuration block of grid_edit_widget.
-  #
-  # * +field+ is evaluated (in Rails) to get the value (e.g., last_name, or person.last_name).
-  # * +name+ is a unique identifier used by the grid, defaults to +field+ with dots replaced by underscores.
-  # * +sortable+ is true is a column is sortable, false otherwise.  A string can be provided instead,
-  #   which will go directly into the order clause of the query.  Defaults to false.
-  # * +index+ is the name of a sortable column, defaults to +name+
-  # * +label+ is what the header displays, defaults to humanized +name+.
-  # * +width+ is the width of the column, defaults to 100.
-  # * +search+ is true when a column is searchable; it is a jqGrid option that I don't use (yet).  Defaults to false.
-  # * +classes+ are CSS classes that will be applied to cells in the column
-  # * +open_panel+ is true if a cell click will open the edit panel, it is matched to css style column_opens_panel
-  # * +inplace_edit+ is true if a cell click will result in an inplace edit, matched to css column_inplace_edit
-  # * +toggle+ is true if the column represents a boolean that will be toggled, goes with inplace_edit
-  # * +default+ is set to true on the column that will be the default sort, false for descending.
-  #   (no default will result in the first sortable column being selected, ascending)
-  def add_column(field, options = {})
-    # grid options
-    options[:name] ||= field.sub('.', '_')
-    options[:sortable] = false unless options.has_key?(:sortable)
-    options[:index] ||= options[:name] if options[:sortable]
-    options[:label] ||= options[:name].humanize
-    options[:width] ||= 100
-    options[:search] = false unless options.has_key?(:search)
-    # local options
-    options[:field] = field
-    options[:inplace_edit] = true if options[:toggle]
-    if options[:open_panel] || options[:inplace_edit]
-      options[:classes] ||= [
-        (options[:open_panel] ? 'column_opens_panel' : nil),
-        (options[:inplace_edit] ? 'column_inplace_edit' : nil)
-      ].compact.join(' ')
-    end
-    if options[:sortable]
-      if options.has_key?(:default)
-        @default_sort = [options[:index], options[:default]]
-      else
-        @default_sort = [options[:index], true] unless @default_sort
-      end
-      @sortable_columns[options[:index]] = @columns.size
-    end
-    @columns << options
-  end  
-
-  # A filter group groups together filters.  All filters must be in a filter group.
-  # For certain filters, where or joins might apply to all of the filters in the group
-  # Those are provided in the options (:where, :joins).
-  #
-  # NOTE that the :where clause here takes a parameter (called as ...[:where].call(values)).
-  # The values used are the identifiers of the filters within, assumed to be integers (record ids)
-  #
-  # The +id+ is a short string identifying the group, and the displayed name is by default the humanized version.
-  # You can provide :name as an option instead.
-  #
-  # If you provide :exclusive, then only one choice in the filter group can be made at a time.
-  #
-  # For the display, you can specify +:columns => n+, which is the number of columns the display table has.
-  #
-  # Internally, :sequence is an array of the identifying keys of the filters within (in order)
-  # and :filters has the individual filters' options
-  def add_filter_group(id, options = {}) # :yields: self
-    options[:name] ||= id.humanize
-    @current_filter_group = id
-    @filters[id] = {:options => options, :sequence => [], :filters => {}}
-    @filter_sequence << id
-    yield self if block_given?
-    self
-  end
-  
-  # A filter (within a filter group) itself has an id, name, and options.
-  # It can contain its own joins and where clauses.
-  # They will be composed with the filter groups' if both have them.
-  # The where clause here does NOT take a parameter, unlike the filter group's.
-  # :name is the display name, it will be the humanized id unless you specify it
-  # This can be called with a simple string, in which that is taken to be the name
-  # If you provide :default, then this filter will be active by default
-  #--
-  # Maybe: add a :set_filters option to allow setting the state of other filters (a macro of a sort)
-  # Maybe: add a way to set the ordering as well as a reaction to a filter.
-  def add_filter(id, options = {})
-    options = {:name => options} if options.is_a?(String)
-    options[:name] ||= id.humanize
-    @filters[@current_filter_group][:filters][id.to_s] = options
-    @filters[@current_filter_group][:sequence] << id.to_s
-    @filter_default << [@current_filter_group,id] if options.has_key?(:default)
-  end
-  
-  # TODO: Move the custom display methods into their own module
-  
-  # Custom display method to abbreviate a long string
-  def custom_abbrev(long_string)
-    long_string[0..20] + (long_string.size > 10 ? '...' : '') rescue ''
-  end
-
-  # Custom display method for booleans: Yes if true, otherwise no
-  def custom_yn(value)
-    value ? 'YES' : 'No'
-  end
-
-  # Custom display method for booleans: check if true, otherwise nothing, using jQuery UI
-  def custom_check(value)
-    value ? '<span class="ui-icon ui-icon-check"></span>' : ''
-  end
-  
+      
   # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
   # In the form, you would put, e.g., <%= rendered_children['contact_widget'] %> to specify the
   # place where the sub-widget will appear.

@@ -1,8 +1,9 @@
 class GridListWidget < Apotomo::Widget
-  include GridWidget::Controller
-  include AppSupport::Controller
-  helper GridWidget::Helper
-  helper AppSupport::Helper
+  include GridWidget::ControllerMethods
+  include GridWidget::CustomDisplayMethods
+  include GridWidget::AppSupport::ControllerMethods
+  helper GridWidget::HelperMethods
+  helper GridWidget::AppSupport::HelperMethods
     
   # This seemed to get caught up in a cache somewhere, so I moved this into
   # the after_add block.
