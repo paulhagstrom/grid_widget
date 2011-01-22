@@ -68,6 +68,7 @@ class GridEditWidget < Apotomo::Widget
   attr_accessor :grid_options
   attr_accessor :dom_id
   attr_accessor :form_template
+  attr_accessor :form_buttons
   attr_accessor :orphan_template
   attr_accessor :where
   attr_accessor :record
@@ -128,6 +129,8 @@ class GridEditWidget < Apotomo::Widget
     render :text => clone_form + update_form_content(@record) + swap_display
   end
   
+  # TODO: This really looks like I have form_only_wrapper and form_wrapper reversed.  Check and fix.
+  # Also, form_wrapper and form_only_wrapper are super-un-DRY, why do I have both?
   def update_form_content(record)
     update(:selector => @dom_id + '_form', :view => @form_template,
       :layout => @form_only ? 'form_wrapper' : 'form_only_wrapper', :locals =>
@@ -138,11 +141,12 @@ class GridEditWidget < Apotomo::Widget
   # Updates the record with attributes in the (@dom_id + '_form') hash (default: resource_widget_form)
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
-    if param(:form_action) == 'submit' || param(:form_action) == 'remain'
-      @record = fetch_record(false)
-      @record.update_attributes(param(@dom_id + '_form'))
-      @record.save
-      if select_options = after_form_update(@record)
+    unless param(:form_action) == 'cancel'
+      attributes = param(@dom_id + '_form')
+      @record = fetch_record(false, attributes)
+      was_new = @record.new_record?
+      @record.update_attributes(attributes)
+      if select_options = after_form_update(@record, was_new, param(:form_action))
         trigger :recordSelected, select_options
       end
       trigger :recordUpdated
@@ -159,9 +163,10 @@ class GridEditWidget < Apotomo::Widget
   end
 
   # #after_form_update is a hook that allows you to react to record creation (e.g., create a child record)
-  # just after it is added (when the id is available).  Override as needed.
-  # If something is returned, it is treated as a new id to select.
-  def after_form_update(record)
+  # just after it is added/saved (when the id is available).  Override as needed.
+  # The was_new parameter will be true if the record was just added.
+  # If something (hash with :id key and possibly others) is returned, it is treated as a new id to select
+  def after_form_update(record, was_new, form_action)
     return nil
   end
   
@@ -223,7 +228,10 @@ class GridEditWidget < Apotomo::Widget
   # TODO: Should #fetch_record be private?
   # The use_scope parameter is set to false on the return from a form submit, since in that case the ID is for
   # the targeted resource and not for the parent's resource.
-  def fetch_record(use_scope = true)
+  # The attributes parameter will populate a new record
+  # You can override fetch_record if you want to add something as the record is created (like user id),
+  # just def fetch_record(use_scope = true, attributes = {}); super(use_scope,attributes); return the record
+  def fetch_record(use_scope = true, attributes = {})
     # If the parent already has an id, use it.
     # If the event sent us an id or pid, use it, otherwise go for the request parameters
     recid = (@form_only && parent.record && parent.record.id) ? parent.record.id :
@@ -239,18 +247,11 @@ class GridEditWidget < Apotomo::Widget
       end
     else
       if @where && use_scope
-        record = before_add((Object.const_get @resource.classify).where(@where.call(pid)).new)
+        record = (Object.const_get @resource.classify).where(attributes).where(@where.call(pid)).new
       else
-        record = before_add((Object.const_get @resource.classify).new)
+        record = (Object.const_get @resource.classify).where(attributes).new
       end
     end
-  end
-
-  # #before_add is a hook that allows you to set certain things (e.g., logged in user) in
-  # the empty record just after it is created.  Override as needed.  Called both when the form
-  # is generated and when the form is submitted with a zero id
-  def before_add(record)
-    record
   end
   
   # Add a column to the column model for the grid.  This will include things like the label and field, any
@@ -456,6 +457,15 @@ class GridEditWidget < Apotomo::Widget
       # create the child list widget
       @list_widget_id = @dom_id + '_list'
       self << widget(:grid_list_widget, @list_widget_id, :display)
+      @form_buttons = [
+        ['submit', 'Save+Close', 'Add+Close'],
+        ['remain', 'Save', 'Add'],
+        ['cancel', 'Cancel', 'Cancel'],
+      ]
+    else
+      @form_buttons = [
+        ['remain', 'Save', 'Add'],
+      ]
     end
   end
 end

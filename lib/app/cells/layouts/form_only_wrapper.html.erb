@@ -6,15 +6,11 @@
 				<%= hidden_field_tag "id", record.id, :id => "#{container}_id" %>
 				<%= yield %>
 				<%= hidden_field_tag "form_action", '', :id => container + '_form_button' %>
-				<% unless @form_only %>
-					<%= submit_tag (record.id.to_i > 0 ? 'Save+Close' : 'Add+Close'),
-						:onclick => "$('##{container + '_form_button'}').val('submit');" %>
-				<% end %>
-					<%= submit_tag (record.id.to_i > 0 ? 'Save' : 'Add'),
-						:onclick => "$('##{container + '_form_button'}').val('remain');" %>
-				<% unless @form_only %>
-					<%= submit_tag 'Cancel',
-						:onclick => "$('##{container + '_form_button'}').val('cancel');" %>
+				<% @form_buttons.each do |button| %>
+					<% if record.id.to_i > 0 || button[2].size > 0 %>
+						<%= submit_tag (record.id.to_i > 0 ? button[1] : button[2]),
+							:onclick => "$('##{container + '_form_button'}').val('#{button[0]}');" %>
+					<% end %>
 				<% end %>
 			<% end %>
 			<%= yield :after_form %>
