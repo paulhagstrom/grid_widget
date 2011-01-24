@@ -1,3 +1,9 @@
+# These are the helper methods for configuring a GridWidget.
+# They are mixed into GridEditWidget.
+# 
+# The methods here provide an interface for setting up the column model that will
+# be used for the grid, and setting up the filters.
+#
 module GridWidget
   module ConfigMethods
     # Add a column to the column model for the grid.  This will include things like the label and field, any

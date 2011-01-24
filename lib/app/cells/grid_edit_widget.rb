@@ -20,10 +20,10 @@
 #   end
 #
 # In the example above, the model will be +Contact+, and it will create a widget with
-# an id of +contact_widget+.  To choose a different widget_id, pass in a +:widget_id+
-# parameter.  Other options passed to +#grid_edit_widget+ will be passed on to the
+# an id of +contact_widget+.  To choose a different widget_id, pass in a <tt>:widget_id</tt>
+# parameter.  Other options passed to +grid_edit_widget+ will be passed on to the
 # widget for storage in its parameters/options.
-# +#grid_edit_widget+ is defined in +grid_widget.rb+.
+# +grid_edit_widget+ is defined in <tt>grid_widget.rb</tt>.
 #
 #     root << grid_edit_widget('contact', :widget_id => 'wid', :beer => :insufficient) do |c|
 #       [...configuration options...]
@@ -31,7 +31,7 @@
 #
 # Most configuration options have a sensible default, so for a very simple widget you
 # can get away with doing nothing but defining the columns.  In that case, it will expect
-# to find the template for the form in app/cells/grid_edit_widget/[resource].html.erb.
+# to find the template for the form in <tt>app/cells/grid_edit_widget/[resource].html.erb</tt>.
 # That is:
 #
 #   has_widgets do |root|
@@ -44,34 +44,41 @@
 # Several basic configuration options are simply attributes that can be set in the
 # configuration block.
 #
-# Grid DOM id:: +dom_id+ (attribute), defaults to resource_widget (like widget_id)
-# Grid options:: +grid_options+ (attribute)
-# Query options:: +includes+ (attribute), defaults to nothing, but if set will cause
+# Grid DOM id::
+#   +dom_id+ (attribute), defaults to resource_widget (like widget_id)
+# Grid options::
+#   +grid_options+ (attribute)
+# Query options::
+#   +includes+ (attribute), defaults to nothing, but if set will cause
 #   eager loading, for use in custom output methods.
-# Form template name:: +form_template+ (attribute),
-#   looks in app/cells/grid_form_widget/form/ for {form_template}.html.erb, and
-#   defaults to {controller}.
-# Where clause for sub-widgets:: +where+ (attribute), define with lambda expecting parent id.
+# Form template name::
+#   +form_template+ (attribute),
+#   looks in <tt>app/cells/grid_form_widget/form/</tt> for <tt>{form_template}.html.erb</tt>, and
+#   defaults to <tt>{controller}</tt>.
+# Where clause for sub-widgets::
+#   +where+ (attribute), define with lambda expecting parent id.
 #   Defaults to +nil+, meaning that the widget is independent.
 #
 # There are a few configuration methods that are defined for the purpose of building
 # up the column and filter models.  These are documented more fully by their own definitions.
 #
-# Column options:: +#add_column# to define the columns in the grid
-# Filter options:: +#add_filter_group# and +#add_filter# to create filters for the grid
+# Column options::
+#   +add_column+ to define the columns in the grid
+# Filter options::
+#   +add_filter_group+ and +add_filter+ to create filters for the grid
 #
 # It is also possible in the configuration block to define custom output methods
 # used by the grid to format the display.  See the example below for one such definition.
 # They are referred to in the column model, when a +:custom+ parameter is passed.
 # There are a couple of these methods already predefined here that can be used.
 # 
-# * :custom_yn (for booleans, display 'Yes' if true otherwise 'No')
-# * :custom_check (like :custom_yn, but displays a checkmark or nothing)
-# * :custom_abbrev (for long strings, cuts it off at 20 characters and provides ellipses)
+# * +custom_yn+ (for booleans, display 'Yes' if true otherwise 'No')
+# * +custom_check+ (like +custom_yn+, but displays a checkmark or nothing)
+# * +custom_abbrev+ (for long strings, cuts it off at 20 characters and provides ellipses)
 #
 # There are also a couple of hooks that can be overridden within the configuration block,
-# discussed more below.  Obvious candidates for this are +#fetch_record+ and 
-# +#after_form_update+.
+# discussed more below.  Obvious candidates for this are +fetch_record+ and 
+# +after_form_update+.
 #
 # The configuration options can all be set in a single configuration block and intermixed,
 # though order does matter when defining columns and filters.
@@ -110,30 +117,30 @@
 # is one where, say, a profile record belongs_to user, and the main widget has profile
 # as its resource. When a profile is being edited, the user fields can also be on the
 # screen for editing.  And, when a new profile is being created, these can be used to
-# create a new user record.  To set this up, +#grid_edit_widget+ should be sent a
-# +:form_only+ parameter, which is a lambda function returning the id of the parent
+# create a new user record.  To set this up, +grid_edit_widget+ should be sent a
+# <tt>:form_only</tt> parameter, which is a lambda function returning the id of the parent
 # when passed the id of the child.  For example:
 #
 #   user_widget = grid_edit_widget('user', :form_only => lambda {|x| Profile.find(x).user_id}) do ...
 #
-# This should then be embedded using embed_widget without a where clause:
+# This should then be embedded using +embed_widget+ without a +where+ clause:
 #
 #   c.embed_widget nil, user_widget
 #
 # If a new record is being added in this situation, and no parent record is selected,
-# then any other child widgets will render #display_orphan.html.erb#, which basically
+# then any other child widgets will render <tt>display_orphan.html.erb</tt>, which basically
 # says that you need a parent record before you can start adding children.  In this
 # example, if you create a new profile, the first step is to create a user that it
 # belongs to, before you can start creating contacts for the user.  You can point to
 # your own orphan template (to provide more customized instructions) by setting the
-# #orphan_template# option.  This will be sought for in the application views directory.
+# +orphan_template+ option.  This will be sought for in the application views directory.
 #
 #   c.orphan_template = 'contacts_orphan'
 #
 # This situation where a form embeds a widget corresponding to a belongs_to association
 # also may lead one to want to attach certain actions to record creation.  This might
 # also arise if you want to automatically set certain fields (like filling in the author
-# of a comment posting).  The suggested approach for this is to override +#fetch_record+
+# of a comment posting).  The suggested approach for this is to override +fetch_record+
 # to do something like the following, which will check to see if a record that would have
 # been added to the user table already exists, and will load the existing record instead
 # if so.
@@ -146,13 +153,13 @@
 #     record
 #   end
 #
-# The +#fetch_record+ method needs to accept the +use_scope+ and +attributes+ parameters,
+# The +fetch_record+ method needs to accept the +use_scope+ and +attributes+ parameters,
 # and return the record (possibly a +new+ record for the model), but most of the basic
 # functionality can be handled by +super+.
 #
-# Once a new record is added, the +#after_form_update+ method is called, and this can
+# Once a new record is added, the +after_form_update+ method is called, and this can
 # be overridden if one wants to, e.g., add certain child records once the parent is
-# created.  +#after_form_update+ has access to the id, whereas +#fetch_record+ doesn't.
+# created.  +after_form_update+ has access to the id, whereas +fetch_record+ doesn't.
 # So, for example, if a default contact record should be added once a new user is created,
 # you could do this:
 #
@@ -165,12 +172,12 @@
 #     return {:pid => record.id, :id => profile.id}
 #   end
 #
-# The +#after_form_update+ method must accept the record, a boolean +was_new+ flag that
+# The +after_form_update+ method must accept the record, a boolean +was_new+ flag that
 # will be true if the record has just been added (and false if this was an edit of an
 # existing record), and the string +form_action+ which will reflect which button was
 # pressed on the form (this code will never be called if the button pressed was 'cancel',
 # but it is possible to add custom buttons that might be used to affect the flow of control
-# here).  If +#after_form_update+ returns something other than +nil+ then a +recordSelected+
+# here).  If +after_form_update+ returns something other than +nil+ then a +recordSelected+
 # event is triggered with the return value.
 # TODO: This is a place where things are kind of clunky.  It works for what I was trying
 # to do, but the retrieval of the profile.id is fragile and I want to rethink how this works.
@@ -260,32 +267,42 @@ class GridEditWidget < Apotomo::Widget
   def form_submitted
     # TODO: Check. This might be a bit insecure at the moment 
     unless param(:form_action) == 'cancel'
-      attributes = param(@dom_id + '_form')
+      attributes, special = get_form_attributes
       @record = fetch_record(false, attributes)
       was_new = @record.new_record?
       @record.update_attributes(attributes)
-      if select_options = after_form_update(@record, was_new, param(:form_action))
-        trigger :recordSelected, select_options
-      end
+      reaction = after_form_update(:record => @record, :was_new => was_new,
+        :form_action => param(:form_action), :special => special)
+      trigger(:recordSelected, reaction[:recordSelected]) if reaction[:recordSelected]
       trigger :recordUpdated
-      if @form_only || param(:form_action) == 'remain'
-        # TODO: Consider whether I want to make it an option to redraw everything. This redraws the children too.
-        # render :text => update_form_content(@record) + pulse_form
-        render :text => pulse_form
-      else
-        render :text => turn_and_deveal_form
-      end      
+      render :text => reaction[:text]
     else
       render :text => turn_and_deveal_form('#FF8888')
     end
   end
-
+  
+  # get_form_attributes pulls the record's attributes from the form, override if you need to
+  # process these before handing them back.  It returns a two-member array, the first member
+  # being the attributes that correspond to the model, the second being the form entries
+  # that don't have a correspondent in the model (e.g., a checkbox use to trigger some action).
+  # This can be used unchanged if the extra things are in the dom_id_form_special array.
+  def get_form_attributes
+    [param(@dom_id + '_form'), param(@dom_id + '_form_special')]
+  end
+    
   # #after_form_update is a hook that allows you to react to record creation (e.g., create a child record)
   # just after it is added/saved (when the id is available).  Override as needed.
-  # The was_new parameter will be true if the record was just added.
-  # If something (hash with :id key and possibly others) is returned, it is treated as a new id to select
-  def after_form_update(record, was_new, form_action)
-    return nil
+  # #form_submitted will send a number of parameters in an options hash.
+  # the return hash should include a :text key that holds the Javascript to render.
+  # If the return hash includes a :recordSelected key, it will trigger :recordSelected with the value.
+  def after_form_update(options = {})
+    reaction = options[:reaction] || {}
+    if @form_only || options[:form_action] == 'remain'
+      reaction[:text] = pulse_form
+    else
+      reaction[:text] = turn_and_deveal_form
+    end
+    reaction
   end
   
   # Forms the Javascript that will pulse the background color of the form (signaling save)
@@ -372,20 +389,6 @@ class GridEditWidget < Apotomo::Widget
     end
   end
       
-  # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
-  # In the form, you would put, e.g., <%= rendered_children['contact_widget'] %> to specify the
-  # place where the sub-widget will appear.
-  # Intended to be called from either a controller or another GridEditWidget (e.g., in after_initialize)
-  # This is called with a 'where' clause that will be used when the records are loaded.
-  # It should be a lambda function which is passed an id, e.g., lambda {|x| {:person_id => x}}
-  # The 'where' clause is required, it tells the widget that it is subordinate.
-  def embed_widget(where, widget)
-    self << widget
-    widget.where = where
-    self.respond_to_event :recordUpdated, :from => widget.name, :with => :redisplay, :on => self.list_widget_id
-    self.respond_to_event :recordSelected, :from => widget.name, :with => :display_form, :on => self.name
-  end
-  
   # #get_request_parameters inspects the request parameters, mostly to sanitize and update
   # the filters.  It will also catch the parent's id (for subordinate forms).
   #
@@ -437,6 +440,15 @@ class GridEditWidget < Apotomo::Widget
     end
     return_params[:filters] = (return_filters.size > 0) ? return_filters : nil
     return_params
+  end
+  
+  # This can be overridden if the caption needs to change dynamically
+  def caption
+    @grid_options[:title] || @resource.pluralize.humanize
+  end
+  
+  def add_form_button(buttonspec)
+    @form_buttons << buttonspec
   end
   
   private
