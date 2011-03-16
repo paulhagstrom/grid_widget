@@ -139,7 +139,7 @@
 # of a comment posting).  The suggested approach for this is to override +fetch_record+
 # to do something like the following, which will check to see if a record that would have
 # been added to the user table already exists, and will load the existing record instead
-# if so.
+# if so. TODO: Update this once I figure out a better interface
 #
 #   def c.fetch_record(use_scope = true, attributes = {})
 #     record = super(use_scope, attributes)
@@ -152,6 +152,9 @@
 # The +fetch_record+ method needs to accept the +use_scope+ and +attributes+ parameters,
 # and return the record (possibly a +new+ record for the model), but most of the basic
 # functionality can be handled by +super+.
+#
+# To stuff in something upon record creation, such as user id, override create_attributes
+# so it returns a hash to update the attributes with.
 #
 # Once a new record is added, the +after_form_update+ method is called, and this can
 # be overridden if one wants to, e.g., add certain child records once the parent is
@@ -248,24 +251,15 @@ class GridEditWidget < Apotomo::Widget
   # Updates the record with attributes in the (@dom_id + '_form') hash (default: resource_widget_form)
   def form_submitted(evt)
     unless evt[:form_action] == 'cancel'
-      attributes = evt["#{dom_id}_form".to_sym]
+      attributes, special = get_form_attributes(evt)
       set_record evt[:id], evt[:pid]
       was_new = record.new_record?
       record.update_attributes(attributes)
-      # call the after_form_update hook, which can trigger selection options .. ?
-      if select_options = after_form_update(record, was_new, evt[:form_action])
-        trigger :display_form, select_options
-      end
+      reaction = after_form_update(:record => record, :was_new => was_new,
+        :form_action => evt[:form_action], :special => special)
+      trigger :display_form, reaction[:display_form] if reaction[:display_form]
       trigger :reload_grid
-      # After the form is submitted, the form can either be closed, or we can stay.
-      # If this is a form_only widget, we have to stay.
-      # TODO: Is there any way to go to next/prev? Perhaps this is what select_options can do for us?
-      if options[:form_only] || evt[:form_action] == 'remain'
-        # TODO: Consider whether I want to make it (an option to) redraw everything.
-        render :text => form_pulse
-      else
-        render :text => form_deveal
-      end
+      render :text => reaction[:text]
     else
       render :text => form_deveal('#FF8888') #cancel
     end
@@ -276,21 +270,23 @@ class GridEditWidget < Apotomo::Widget
   # being the attributes that correspond to the model, the second being the form entries
   # that don't have a correspondent in the model (e.g., a checkbox use to trigger some action).
   # This can be used unchanged if the extra things are in the dom_id_form_special array.
-  def get_form_attributes
-    [param(@dom_id + '_form'), param(@dom_id + '_form_special')]
+  def get_form_attributes(evt)
+    [evt["#{dom_id}_form".to_sym], evt["#{dom_id}_form_special"]]
   end
     
   # #after_form_update is a hook that allows you to react to record creation (e.g., create a child record)
   # just after it is added/saved (when the id is available).  Override as needed.
   # #form_submitted will send a number of parameters in an options hash.
   # the return hash should include a :text key that holds the Javascript to render.
-  # If the return hash includes a :recordSelected key, it will trigger :recordSelected with the value.
-  def after_form_update(options = {})
-    reaction = options[:reaction] || {}
-    if @form_only || options[:form_action] == 'remain'
-      reaction[:text] = pulse_form
+  # If the return hash includes a :display_form key, it will trigger :display_form with the value.
+  # This is the approved way of stuffing 
+  # TODO: Document why that's useful
+  def after_form_update(opts = {})
+    reaction = opts[:reaction] || {}
+    if options[:form_only] || opts[:form_action] == 'remain'
+      reaction[:text] = form_pulse
     else
-      reaction[:text] = turn_and_deveal_form
+      reaction[:text] = form_deveal
     end
     reaction
   end
@@ -362,13 +358,7 @@ class GridEditWidget < Apotomo::Widget
   def caption
     grid_options[:title] || options[:resource].pluralize.humanize
   end
-    
-  # add a form button
-  # this was a merge conflict at a certain point, may need checking.
-  def add_form_button(buttonspec)
-    self.form_buttons << buttonspec
-  end
-    
+      
   private
   
   def resource_model
@@ -380,7 +370,13 @@ class GridEditWidget < Apotomo::Widget
   def set_record(id = nil, pid = nil)
     unless id.to_i > 0 && self.record = resource_model.includes(includes).find(id.to_i)
       self.record = resource_model.where((pid && where) ? where.call(pid) : {}).new
+      self.record.attributes(create_attributes)
     end
+  end
+  
+  # set_create defaults is a hook to stuff default values into newly created records
+  def create_attributes
+    {}
   end
   
   # Called by after_initialize, will set the defaults prior to executing the configuration block.

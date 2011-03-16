@@ -95,5 +95,12 @@ module GridWidget
       @filters[@current_filter_group][:sequence] << id.to_s
       @filter_default[@current_filter_group] = id if opts.has_key?(:default)
     end
+    
+    # add a form button
+    # pass it a three member array, with id, text for update, text for add, e.g. ['submit','Save','Add']
+    def add_form_button(buttonspec)
+      self.form_buttons << buttonspec
+    end
+    
   end
 end
