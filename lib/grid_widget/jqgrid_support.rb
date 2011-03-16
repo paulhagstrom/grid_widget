@@ -45,9 +45,12 @@ module GridWidget
           }
       end
     
-      # Redraw the grid (re-request the dataset)
+      # Redraw the grid (re-request the dataset) and reset the caption in case it changed
       def grid_reload
-        "$('##{parent.dom_id}_grid').trigger('reloadGrid');"
+        <<-JS
+        $('##{parent.dom_id}_grid').setCaption('#{parent.caption}');
+        $('##{parent.dom_id}_grid').trigger('reloadGrid');
+        JS
       end
     
       # grid_event_spec returns a hash with col (column number) and id (record id) from a row click event
@@ -104,6 +107,7 @@ module GridWidget
         		datatype:'json',
         		mtype: 'GET',
         		colModel:[#{grid_columns}],
+        		hiddengrid:#{controller.parent.grid_options[:hiddengrid] || false},
         		rowNum:#{controller.parent.grid_options[:rows] || 10},
         		height:#{controller.parent.grid_options[:height] || 400},
         		//scrollrows:true,
@@ -114,8 +118,10 @@ module GridWidget
             #{grid_wire_default_sort}
             #{grid_wire_set_pid}
         		viewrecords: true,
+        		caption: '#{@cell.parent.caption}'
         		caption: '#{controller.parent.grid_options[:title] || controller.parent.resource.pluralize.humanize}'
         	});
+        #{grid_wire_activate_titlebar}
         #{grid_wire_nav}
         JS
         x
@@ -216,6 +222,15 @@ module GridWidget
         JS
       end
    
+      def grid_wire_activate_titlebar
+        <<-JS
+        // make clicking on the caption the same as click on the collapse icon.
+      	var v = $('##{controller.parent.dom_id}_grid').closest('.ui-jqgrid-view');
+      	v.find('.ui-jqgrid-titlebar').click(function() {
+      		$(this).find('.ui-jqgrid-titlebar-close').trigger('click');
+      		});
+        JS
+      end
     end
   end
 end
