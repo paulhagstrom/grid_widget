@@ -358,17 +358,23 @@ class GridEditWidget < Apotomo::Widget
     respond_to_event :display_form, :from => wid.name, :with => :display_form, :on => name
   end
       
+  # This can be overridden if the caption needs to change dynamically
+  def caption
+    grid_options[:title] || options[:resource].pluralize.humanize
+  end
+    
+  # add a form button
+  # this was a merge conflict at a certain point, may need checking.
+  def add_form_button(buttonspec)
+    self.form_buttons << buttonspec
+  end
+    
   private
   
   def resource_model
     Object.const_get options[:resource].classify
   end
   
-  # This can be overridden if the caption needs to change dynamically
-  def caption
-    grid_options[:title] || options[:resource].pluralize.humanize
-  end
-    
   # set_record sets the record object to that with the passed id.
   # If id is nil, record object is a new record, if parent id is set, it is passed to @where
   def set_record(id = nil, pid = nil)
@@ -377,12 +383,6 @@ class GridEditWidget < Apotomo::Widget
     end
   end
   
-  # add a form button
-  # this was a merge conflict at a certain point, may need checking.
-  def add_form_button(buttonspec)
-    self.form_buttons << buttonspec
-  end
-    
   # Called by after_initialize, will set the defaults prior to executing the configuration block.
   # options can include :resource and :form_only, both need to be known by this point.
   def setup(*)

@@ -118,8 +118,7 @@ module GridWidget
             #{grid_wire_default_sort}
             #{grid_wire_set_pid}
         		viewrecords: true,
-        		caption: '#{@cell.parent.caption}'
-        		caption: '#{controller.parent.grid_options[:title] || controller.parent.resource.pluralize.humanize}'
+        		caption: '#{controller.parent.caption}'
         	});
         #{grid_wire_activate_titlebar}
         #{grid_wire_nav}
