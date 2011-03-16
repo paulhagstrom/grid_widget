@@ -34,9 +34,10 @@ class GridListWidget < Apotomo::Widget
   # TODO: Can I make these a bit more chainable?
   # Magic: use_pagination sets some instance variables that grid_json uses.
   def fetch_data(evt)
-    query = use_sort(resource.scoped, evt)
+    query = resource.scoped
+    query = query.includes(includes) if includes
+    query = use_sort(query, evt)
     query = use_filter(query, evt)
-    query = query.includes(includes) if includes    
     query = query.where(where.call(evt[:pid])) if where && evt[:pid]
     render :text => grid_json(use_pagination(query, evt)).to_json
   end
