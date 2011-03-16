@@ -6,8 +6,9 @@ module GridWidget
     #
     # * +field+ is evaluated (in Rails) to get the value (e.g., last_name, or person.last_name).
     # * +name+ is a unique identifier used by the grid, defaults to +field+ with dots replaced by underscores.
-    # * +sortable+ is true is a column is sortable, false otherwise.  A string can be provided instead,
-    #   which will go directly into the order clause of the query.  Defaults to false.
+    # * +sortable+ is true is a column is sortable, false otherwise.  A two-member array of strings can be
+    #   provided instead, which will go directly into the order clause of the query (for ascending and
+    #   descending sorts, respectively).  Defaults to false.
     # * +index+ is the name of a sortable column, defaults to +name+
     # * +label+ is what the header displays, defaults to humanized +name+.
     # * +width+ is the width of the column, defaults to 100.
@@ -18,32 +19,32 @@ module GridWidget
     # * +toggle+ is true if the column represents a boolean that will be toggled, goes with inplace_edit
     # * +default+ is set to true on the column that will be the default sort, false for descending.
     #   (no default will result in the first sortable column being selected, ascending)
-    def add_column(field, options = {})
+    def add_column(field, opts = {})
       # grid options
-      options[:name] ||= field.sub('.', '_')
-      options[:sortable] = false unless options.has_key?(:sortable)
-      options[:index] ||= options[:name] if options[:sortable]
-      options[:label] ||= options[:name].humanize
-      options[:width] ||= 100
-      options[:search] = false unless options.has_key?(:search)
+      opts[:name] ||= field.sub('.', '_')
+      opts[:sortable] = false unless opts.has_key?(:sortable)
+      opts[:index] ||= opts[:name] if opts[:sortable]
+      opts[:label] ||= opts[:name].humanize
+      opts[:width] ||= 100
+      opts[:search] = false unless options.has_key?(:search)
       # local options
-      options[:field] = field
-      options[:inplace_edit] = true if options[:toggle]
-      if options[:open_panel] || options[:inplace_edit]
-        options[:classes] ||= [
-          (options[:open_panel] ? 'column_opens_panel' : nil),
-          (options[:inplace_edit] ? 'column_inplace_edit' : nil)
+      opts[:field] = field
+      opts[:inplace_edit] = true if opts[:toggle]
+      if opts[:open_panel] || opts[:inplace_edit]
+        opts[:classes] ||= [
+          (opts[:open_panel] ? 'column_opens_panel' : nil),
+          (opts[:inplace_edit] ? 'column_inplace_edit' : nil)
         ].compact.join(' ')
       end
-      if options[:sortable]
-        if options.has_key?(:default)
-          @default_sort = [options[:index], options[:default]]
+      if opts[:sortable]
+        if opts.has_key?(:default)
+          @default_sort = [opts[:index], opts[:default]]
         else
-          @default_sort = [options[:index], true] unless @default_sort
+          @default_sort = [opts[:index], true] unless @default_sort
         end
-        @sortable_columns[options[:index]] = @columns.size
+        @sortable_columns[opts[:index]] = @columns.size
       end
-      @columns << options
+      @columns << opts
     end  
 
     # A filter group groups together filters.  All filters must be in a filter group.
@@ -62,10 +63,10 @@ module GridWidget
     #
     # Internally, :sequence is an array of the identifying keys of the filters within (in order)
     # and :filters has the individual filters' options
-    def add_filter_group(id, options = {}) # :yields: self
-      options[:name] ||= id.humanize
+    def add_filter_group(id, opts = {}) # :yields: self
+      opts[:name] ||= id.humanize
       @current_filter_group = id
-      @filters[id] = {:options => options, :sequence => [], :filters => {}}
+      @filters[id] = {:options => opts, :sequence => [], :filters => {}}
       @filter_sequence << id
       yield self if block_given?
       self
@@ -81,12 +82,12 @@ module GridWidget
     #--
     # Maybe: add a :set_filters option to allow setting the state of other filters (a macro of a sort)
     # Maybe: add a way to set the ordering as well as a reaction to a filter.
-    def add_filter(id, options = {})
-      options = {:name => options} if options.is_a?(String)
-      options[:name] ||= id.humanize
-      @filters[@current_filter_group][:filters][id.to_s] = options
+    def add_filter(id, opts = {})
+      opts = {:name => opts} if opts.is_a?(String)
+      opts[:name] ||= id.humanize
+      @filters[@current_filter_group][:filters][id.to_s] = opts
       @filters[@current_filter_group][:sequence] << id.to_s
-      @filter_default << [@current_filter_group,id] if options.has_key?(:default)
+      @filter_default[@current_filter_group] = id if opts.has_key?(:default)
     end
   end
 end

@@ -1,7 +1,7 @@
 GridEditWidget
 ==============
 
-jqGrid widget for Apotomo.
+jqGrid widget for Apotomo.  Set up for 1.1.
 
 You can see by its structure probably that I am working toward making it a proper plugin, maybe even a gem.
 At the moment, though it's kind of halfway there, I doubt it will install properly as a plugin.

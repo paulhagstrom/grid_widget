@@ -1,0 +1,2 @@
+var origColor = $('#<%= form %>').css('background-color');
+$('#<%= form %>').animate({backgroundColor: '<%= color %>'}, 100).animate({backgroundColor:origColor}, 1000);

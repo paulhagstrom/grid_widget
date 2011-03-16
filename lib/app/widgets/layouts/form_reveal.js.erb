@@ -1,0 +1,7 @@
+var new_form = $('#<%= form_selector %>').clone().hide().css('background-color','#DDDDFF');
+$('#<%= form_selector %>').attr('id', '<%= form_selector %>_remove');
+$('#<%= form_selector %>_remove').find('[id]').attr('id', function(){return this.id + '_remove';});
+new_form.insertAfter('#<%= form_selector %>_remove');
+<%= yield %>
+$('#<%= form_selector %>').slideDown('fast');
+$('#<%= form_selector %>_remove').slideUp('fast', function() { $(this).remove();});

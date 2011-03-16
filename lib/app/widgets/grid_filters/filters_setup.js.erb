@@ -1,0 +1,13 @@
+$('#<%= controller.dom_id %>_panel .filter').hover(function(){
+    $(this).addClass('filter_hover');
+  },function(){
+    $(this).removeClass('filter_hover');
+  });
+
+function build_filter(domid,g,v){
+  var gpd;
+  gpd = $(domid).getGridParam('postData');
+  if(typeof gpd['filters'] == 'undefined') gpd = {'filters':''};
+  gpd['filters'] = gpd['filters'] + '|' + g + '-' + v;
+  return gpd;
+}

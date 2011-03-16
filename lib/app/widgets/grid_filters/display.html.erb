@@ -1,0 +1,31 @@
+<div id="<%= controller.dom_id %>_filters">
+	<% if filter_groups.size > 0 %>
+		<% wiring = '' %>
+	<table class="filter_container">
+		<% filter_groups.each do |filter_group| %>
+		<tr>
+			<td class="filter_label"><%= filter_group[:label] %></td>
+			<td class="filter_contents">
+				<table class="filter_table">
+			<% filter_group[:filters].each do |sf| %>
+					<tr>
+				<% sf.each do |f| %>
+					<% if f[:id] %>
+						<td class="<%= f[:class] %>" id="<%= f[:id] %>"><%= f[:name] %></td>
+						<% wiring += f[:wiring] %>
+					<% else %>
+						<td class="filter_empty">&nbsp;</td>
+					<% end %>
+				<% end %>
+					</tr>
+			<% end %>
+				</table>
+			</td>
+		</tr>
+		<% end %>
+	</table>
+		<%= javascript_tag render :view => 'filters_setup.js' %>
+		<%= javascript_tag wiring %>
+		<%= javascript_tag render :state => :set_filter %>
+	<% end %>
+</div>

@@ -10,7 +10,6 @@
 # which can be individually set if necessary, but in the most basic form just the resource
 # can be named.  The resource should be the name of a model, in underscore form.
 #
-#   include Apotomo::Rails::ControllerMethods
 #   include GridWidget::Controller
 # 
 #   has_widgets do |root|
@@ -20,7 +19,7 @@
 #   end
 #
 # In the example above, the model will be +Contact+, and it will create a widget with
-# an id of +contact_widget+.  To choose a different widget_id, pass in a +:widget_id+
+# an id of +contact+.  To choose a different widget_id, pass in a +:widget_id+
 # parameter.  Other options passed to +#grid_edit_widget+ will be passed on to the
 # widget for storage in its parameters/options.
 # +#grid_edit_widget+ is defined in +grid_widget.rb+.
@@ -31,7 +30,7 @@
 #
 # Most configuration options have a sensible default, so for a very simple widget you
 # can get away with doing nothing but defining the columns.  In that case, it will expect
-# to find the template for the form in app/cells/grid_edit_widget/[resource].html.erb.
+# to find the template for the form in app/widgets/grid_edit_widget/[resource].html.erb.
 # That is:
 #
 #   has_widgets do |root|
@@ -44,7 +43,7 @@
 # Several basic configuration options are simply attributes that can be set in the
 # configuration block.
 #
-# Grid DOM id:: +dom_id+ (attribute), defaults to resource_widget (like widget_id)
+# Base DOM id:: +dom_id+ (attribute), defaults to resource
 # Grid options:: +grid_options+ (attribute)
 # Query options:: +includes+ (attribute), defaults to nothing, but if set will cause
 #   eager loading, for use in custom output methods.
@@ -182,101 +181,89 @@ class GridEditWidget < Apotomo::Widget
   include GridWidget::AppSupport::ControllerMethods
   helper GridWidget::HelperMethods
   
+  # attributes that you can set in the configuration block
+  attr_accessor :dom_id
   attr_accessor :includes
   attr_accessor :grid_options
-  attr_accessor :dom_id
   attr_accessor :form_template
   attr_accessor :form_buttons
   attr_accessor :orphan_template
   attr_accessor :where
   attr_accessor :record
-  attr_reader :resource
+  # internal attributes not intended for configuration block
+  # for columns and filters, use add_column, add_filter, add_filter_group (in ConfigMethods)
+  # These are consulted by the child widget
+  attr_reader :list_widget
+  attr_reader :filters_widget
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
-  attr_reader :form_only
-  attr_reader :list_widget_id
   
+  # because resource and form_only are used in the pre-configuration block setup
+  # they must be set as widget options
   after_initialize :setup
-
-  # TODO: Try this later
-  # responds_to_event :formSubmit, :with => :form_submitted
   
-  after_add do |me, parent|
-    me.respond_to_event :formSubmit, :from => me.name, :with => :form_submitted, :on => me.name
+  after_add do |me, mom|
+    me.respond_to_event :form_submitted, :from => me.name
   end
-  
-  # Draw the empty form (and the child list widget, which will render first)
+    
   def display
-    my_params = get_request_parameters
-    if @form_only
-      @record = fetch_record
-      render :view => @form_template, :layout => 'form_only_wrapper', :locals =>
-          {:container => @dom_id + '_form', :resource => @resource, :record => @record}
+    # for "form only" widget, we find this resource's record based on an id in the parent's record
+    # TODO: This makes more db queries than necessary. Make form_only depend on record not id?
+    if options[:form_only]
+      set_record (parent.record.id.to_i > 0) ? options[:form_only].call(parent.record.id) : 0
+      render form_content_options
     else
-      if @where && !my_params[:pid]
-        render :view => @orphan_template
+      # for child widgets (where the list depends on a parent's selection), show orphan if none selected
+      if where && parent.record.id.to_i == 0
+        render :view => orphan_template
       else
         render
       end
     end
   end
     
-  # #display_form catches the :recordSelected event that originates from the list #cell_click method.
+  # #display_form catches the :display_form event that originates from the list #cell_click method.
+  # #display_form can also be triggered by a form submission
+  # BUT RIGHT NOW THAT IS UNCAUGHT UNLESS THIS IS AN EMBEDDED WIDGET.  APPROPRIATE?  HANDLER INSTALLED IN embed_widget.
   # Emits the JS to populate and reveal the form.
-  def display_form
-    # The 1-arity form of this, which is supposed to retrieve the event, isn't working for me.
-    # fetch_record makes use of @opts[:event]
-    @record = fetch_record
-    # Make a new form div so we can slide away the old one and swap ids
-    # (This all relies on the id of the form corresponding to an enclosing div, incidentally)
-    form = @dom_id + '_form'
-    clone_form = <<-JS
-    var new_form = $('##{form}').clone().hide().css('background-color','#DDDDFF');
-    $('##{form}').attr('id', 'ex_#{form}');
-    $('#ex_#{form}').find('[id]').attr('id', function(){return 'ex_' + this.id;});
-    // These elements are no more.  They have ceased to be.  Bereft of life, they rest in peace.
-    // This is an ex_form!
-    new_form.insertAfter('#ex_#{form}');
-    JS
-    # slide in the new one and slide out and destroy the old one
-    swap_display = <<-JS
-    $('##{form}').slideDown('fast');
-    $('#ex_#{form}').slideUp('fast', function() { $(this).remove();});
-    JS
-    render :text => clone_form + update_form_content(@record) + swap_display
+  def display_form(evt)
+    set_record evt[:id], evt[:pid]
+    render :text => update("##{dom_id}_form", form_content_options(evt[:pid])),
+      :layout => 'form_reveal.js.erb',
+      :locals => {:form_selector => "#{dom_id}_form"}
   end
-  
-  # TODO: This really looks like I have form_only_wrapper and form_wrapper reversed.  Check and fix.
-  # Also, form_wrapper and form_only_wrapper are super-un-DRY, why do I have both?
-  def update_form_content(record)
-    update(:selector => @dom_id + '_form', :view => @form_template,
-      :layout => @form_only ? 'form_wrapper' : 'form_only_wrapper', :locals =>
-      {:container => @dom_id + '_form', :resource => @resource, :record => record}) + ';'
+
+  # form_content_options are sent to either update or render to fill in the form
+  def form_content_options(pid = nil)
+    {:view => form_template, :layout => 'form_wrapper',
+      :locals => {:container => "#{dom_id}_form", :record => record, :pid => pid}}
   end
-  
-  # #form_submitted catches the :formSubmit event from the form (defined in the form_wrapper layout).
+    
+  # #form_submitted catches the :form_submitted event from the form (defined in the form_wrapper layout).
   # Updates the record with attributes in the (@dom_id + '_form') hash (default: resource_widget_form)
-  def form_submitted
-    # TODO: Check. This might be a bit insecure at the moment 
-    unless param(:form_action) == 'cancel'
-      attributes = param(@dom_id + '_form')
-      @record = fetch_record(false, attributes)
-      was_new = @record.new_record?
-      @record.update_attributes(attributes)
-      if select_options = after_form_update(@record, was_new, param(:form_action))
-        trigger :recordSelected, select_options
+  def form_submitted(evt)
+    unless evt[:form_action] == 'cancel'
+      attributes = evt["#{dom_id}_form".to_sym]
+      set_record evt[:id], evt[:pid]
+      was_new = record.new_record?
+      record.update_attributes(attributes)
+      # call the after_form_update hook, which can trigger selection options .. ?
+      if select_options = after_form_update(record, was_new, evt[:form_action])
+        trigger :display_form, select_options
       end
-      trigger :recordUpdated
-      if @form_only || param(:form_action) == 'remain'
-        # TODO: Consider whether I want to make it an option to redraw everything. This redraws the children too.
-        # render :text => update_form_content(@record) + pulse_form
-        render :text => pulse_form
+      trigger :reload_grid
+      # After the form is submitted, the form can either be closed, or we can stay.
+      # If this is a form_only widget, we have to stay.
+      # TODO: Is there any way to go to next/prev? Perhaps this is what select_options can do for us?
+      if options[:form_only] || evt[:form_action] == 'remain'
+        # TODO: Consider whether I want to make it (an option to) redraw everything.
+        render :text => form_pulse
       else
-        render :text => turn_and_deveal_form
-      end      
+        render :text => form_deveal
+      end
     else
-      render :text => turn_and_deveal_form('#FF8888')
+      render :text => form_deveal('#FF8888') #cancel
     end
   end
 
@@ -288,195 +275,121 @@ class GridEditWidget < Apotomo::Widget
     return nil
   end
   
-  # Forms the Javascript that will pulse the background color of the form (signaling save)
-  def pulse_form(color = '#88FF88')
-    form = @dom_id + '_form'
-    <<-JS
-    var origColor = $('##{form}').css('background-color');
-    $('##{form}').animate({backgroundColor: '#{color}'}, 100).animate({backgroundColor:origColor}, 1000);
-    JS
+  # JS to pulse the background color of the form (signaling save)
+  def form_pulse(color = '#88FF88')
+    render :view => 'form_pulse', :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
-  # Forms the Javascript that will change the background color of the form and slide it away.
-  # This is included in the responses to hitting update or cancel.
-  # The color is supposed to signal whether it is an update or a cancel (default is green for update).
-  # TODO: Use CSS
-  def turn_and_deveal_form(color = '#88FF88')
-    form = @dom_id + '_form'
-    <<-JS
-    $('##{form}').css('background-color','#{color}').slideUp('fast');
-    JS
+  # JS to change the background color of the form and slide it away.
+  # The color is supposed to signal update (default, green) or cancel (e.g., '#FF8888' red).
+  def form_deveal(color = '#88FF88')
+    render :view => 'form_deveal', :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
-  # #delete_record catches the :deleteRecord event posted by the grid when the delete button is hit.
-  # Deletes the selected record, cancels the form, and posts :recordUpdated to get the list to redraw.
-  def delete_record
-    if record = fetch_record
-      record.destroy
-    end
-    trigger :recordUpdated
-    render :text => turn_and_deveal_form('#FF8888')
+  # #delete_record catches the :delete_record event posted by the grid when the delete button is hit.
+  # Deletes the selected record, cancels the form, and posts :reload_grid to get the list to redraw.
+  # def delete_record
+  # TODO: Allow delete button from form?
+  def delete_record(evt)
+    set_record evt[:id]
+    record.destroy if record.id
+    trigger :reload_grid
+    render :text => form_deveal('#FF8888') #cancel
   end
   
-  # #edit_record catches the :editRecord event posted by the grid for editing in place.
+  # #inplace_edit catches the :inplace_edit event posted by the cell_click handler for editing in place.
   # At this point, it only handles toggling boolean values.
   # TODO: Allow for other editing in place.
   # When an in-place edit happens, the form is canceled because it *could* have been the one we
   # were editing.
   # TODO: Make this smarter so that it will cancel the form only if it *is* the one we are editing.
   # TODO: Or make it even smarter and have it update the value in the form rather than cancel.
-  def edit_record
-    c = @columns[param(:col).to_i]
+  def inplace_edit(evt)
+    c = @columns[evt[:col].to_i]
     if c[:inplace_edit]
-      record = fetch_record
+      set_record evt[:id]
       if c[:toggle]
         f = c[:field]
         v = record.send(f)
         record.update_attributes({f => !v})
       end
       record.save
-      trigger :recordUpdated
-      render :text => turn_and_deveal_form('#FF8888')
+      trigger :reload_grid
+      render :text => form_deveal('#FF8888') #cancel
     else
       render :nothing => true
     end
   end
   
-  # #fetch_record loads either a new record or the record for which an ID was passed.
-  # TODO: Should #fetch_record be private?
-  # The use_scope parameter is set to false on the return from a form submit, since in that case the ID is for
-  # the targeted resource and not for the parent's resource.
-  # The attributes parameter will populate a new record
-  # You can override fetch_record if you want to add something as the record is created (like user id),
-  # just def fetch_record(use_scope = true, attributes = {}); super(use_scope,attributes); return the record
-  def fetch_record(use_scope = true, attributes = {})
-    # If the parent already has an id, use it.
-    # If the event sent us an id or pid, use it, otherwise go for the request parameters
-    recid = (@form_only && parent.record && parent.record.id) ? parent.record.id :
-      (@opts[:event] && @opts[:event].data[:id].to_i > 0) ? @opts[:event].data[:id].to_i : 
-      param(:id).to_i    
-    pid = (@opts[:event] && @opts[:event].data[:pid].to_i > 0) ? @opts[:event].data[:pid].to_i :
-      param(:pid).to_i
-    if recid > 0
-      if @form_only && use_scope
-        record = (Object.const_get @resource.classify).includes(@includes).find(@form_only.call(recid))
-      else
-        record = (Object.const_get @resource.classify).includes(@includes).find(recid)
-      end
-    else
-      if @where && use_scope
-        record = (Object.const_get @resource.classify).where(attributes).where(@where.call(pid)).new
-      else
-        record = (Object.const_get @resource.classify).where(attributes).new
-      end
-    end
-  end
-      
   # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
-  # In the form, you would put, e.g., <%= rendered_children['contact_widget'] %> to specify the
+  # In the form, you would put, e.g., <%= render_widget :contact %> to specify the
   # place where the sub-widget will appear.
-  # Intended to be called from either a controller or another GridEditWidget (e.g., in after_initialize)
+  # Intended to be called from either a controller or another GridEditWidget (e.g., in setup)
   # This is called with a 'where' clause that will be used when the records are loaded.
   # It should be a lambda function which is passed an id, e.g., lambda {|x| {:person_id => x}}
   # The 'where' clause is required, it tells the widget that it is subordinate.
-  def embed_widget(where, widget)
-    self << widget
-    widget.where = where
-    self.respond_to_event :recordUpdated, :from => widget.name, :with => :redisplay, :on => self.list_widget_id
-    self.respond_to_event :recordSelected, :from => widget.name, :with => :display_form, :on => self.name
+  # The wiring here: if the child edit widget posts a reload_grid event, send it to our list.
+  # If the child posts a display form, send it to ourselves.
+  # TODO: Track this wiring to see if it is correct.
+  def embed_widget(where, wid)
+    self << wid
+    wid.where = where
+    respond_to_event :reload_grid, :from => wid.name, :with => :reload_grid, :on => list_widget
+    respond_to_event :display_form, :from => wid.name, :with => :display_form, :on => name
   end
-  
-  # #get_request_parameters inspects the request parameters, mostly to sanitize and update
-  # the filters.  It will also catch the parent's id (for subordinate forms).
-  #
-  # Filter parameters come in as a string in :filters in the following format:
-  # filters = group1-val1-val2-val3|group2-vala-valb-valc|group1-val4
-  # if a group repeats, the later values toggle existing, e.g., above group1 will have val4
-  # if it had ended in group1-val2, then val2 would have been removed from group1
-  # TODO: Investigate using real arrays, it would be simpler than having to parse this much.
-  def get_request_parameters
-    return_filters = {}
-    # If the parent has a record already, use it in preference to the request parameter
-    pid = (parent.is_a?(GridEditWidget) && parent.record) ? parent.record.id : param(:pid)
-    return_params = pid ? {:pid => pid} : {}
-    if param(:filters)
-      # parse the filters parameter
-      filters = []
-      (filter_groups = param(:filters).split('|')).each do |f|
-        filter_parts = f.split('-')
-        filter_group = filter_parts.shift
-        filters << [filter_group, filter_parts]
-      end
-      # verify the filters, make delta changes
-      filters.each do |group, filter_ids|
-        if @filter_sequence.include?(group)
-          return_filters[group] ||= []
-          filter_ids.each do |filter_id|
-            if @filters[group][:sequence].include?(filter_id)
-              if @filters[group][:options].has_key?(:exclusive)
-                return_filters[group] = return_filters[group].include?(filter_id) ? [] : [filter_id]
-              else
-                if return_filters[group].include?(filter_id)
-                  return_filters[group].delete(filter_id)
-                else
-                  return_filters[group] << filter_id
-                end
-              end
-            end
-          end
-        end
-      end
-    end
-    unless return_filters.size > 0
-      # No (valid) filters, so return the default if there is one
-      @filter_default.each do |df|
-        g, f = df
-        return_filters[g] ||= []
-        return_filters[g] << f
-      end
-    end
-    return_params[:filters] = (return_filters.size > 0) ? return_filters : nil
-    return_params
-  end
-  
+      
   private
   
-  # Called by after_initialize, will set the defaults prior to executing the configuration block.
-  def setup(*)
-    @resource = param(:resource)
-    @form_only = param(:form_only)
-    @where = param(:where)
+  def resource_model
+    Object.const_get options[:resource].classify
+  end
     
-    @dom_id = @resource + '_widget'
-
-    @grid_options = {}
+  # set_record sets the record object to that with the passed id.
+  # If id is nil, record object is a new record, if parent id is set, it is passed to @where
+  def set_record(id = nil, pid = nil)
+    unless id.to_i > 0 && self.record = resource_model.includes(includes).find(id.to_i)
+      self.record = resource_model.where((pid && where) ? where.call(pid) : {}).new
+    end
+  end
+    
+  # Called by after_initialize, will set the defaults prior to executing the configuration block.
+  # options can include :resource and :form_only, both need to be known by this point.
+  def setup(*)
+    self.where = nil
+    self.dom_id = options[:resource]
+    self.grid_options = {}
+    # Guesses that you will use the resource name for the form template.
+    self.form_template = options[:resource]
+    # The orphan template is used when a parent record is needed but not selected
+    self.orphan_template = 'orphan'
+    # Ensure that we always have a record of some sort
+    self.record = resource_model.new
     
     @columns = []
     @sortable_columns = {}
-    @default_sort = nil
-    
+    @default_sort = nil    
+
     @filters = {}
     @filter_sequence = []
-    @filter_default = []
+    @filter_default = {}
     
-    # Guesses that you will be using the form template matching the name of your controller
-    # This can be overridden in the configuration, but defaults to 'authors' for AuthorsController
-    @form_template = parent_controller.class.name.underscore.gsub(/_controller$/,'')
-    # The orphan template is used when a parent record is needed but not selected
-    @orphan_template = 'display_orphan'
-    
-    unless @form_only
-      # create the child list widget
-      @list_widget_id = @dom_id + '_list'
-      self << widget(:grid_list_widget, @list_widget_id, :display)
-      @form_buttons = [
+    if options[:form_only]
+      @list_widget = nil
+      @filters_widget = nil
+      self.form_buttons = [
+        ['remain', 'Save', 'Add'],
+      ]
+    else
+      @list_widget = options[:resource] + '_list'
+      @filters_widget = options[:resource] + '_filters'
+      self << widget(:grid_list, @list_widget) do |lw|
+        lw << widget(:grid_filters, @filters_widget)
+      end
+      # self << (widget(:grid_list, @list_widget) << widget(:grid_filters, @filters_widget))
+      self.form_buttons = [
         ['submit', 'Save+Close', 'Add+Close'],
         ['remain', 'Save', 'Add'],
         ['cancel', 'Cancel', 'Cancel'],
-      ]
-    else
-      @form_buttons = [
-        ['remain', 'Save', 'Add'],
       ]
     end
   end

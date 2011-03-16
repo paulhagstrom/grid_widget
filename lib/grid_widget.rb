@@ -7,13 +7,14 @@
 #
 # Controllers should contain the lines
 #
-#   include Apotomo::Rails::ControllerMethods
 #   include GridWidget::ControllerMethods
 #
+# TODO: The GridWidget name is not great, because it results in a grid_widget.rb
+# which is NOT an apotomo widget.  I should consider renaming this.  Possibilities
+# include grid_widgets, since that's really what it is, a collection of widgets
+# to implement a grid.  First I will get it working, then I will consider renaming.
 
-# The GridWidget module mixes in relevant controller and helper methods
 module GridWidget
-  # Later I might allow for some kind of configuration to choose the grid.  For now: jqGrid.
   require 'grid_widget/app_support'
   require 'grid_widget/jqgrid_support'
   require 'grid_widget/controller_methods'
@@ -21,13 +22,12 @@ module GridWidget
   require 'grid_widget/config_methods'
   
   module ControllerMethods
-    # Include the plugin-internal paths, so that the views in lib/app/cells are locatable.
-    Cells.setup do |config|
-      config.append_view_path File.join(File.dirname(__FILE__), 'app', 'cells')
-    end    
+    # Include the plugin-internal paths, so that the views in lib/views are locatable.
+    Apotomo::Widget.append_view_path File.join(File.dirname(__FILE__), 'app', 'widgets')
   end
   
-  require 'app/cells/grid_edit_widget'
-  require 'app/cells/grid_list_widget'
+  require 'app/widgets/grid_edit_widget'
+  require 'app/widgets/grid_list_widget'
+  require 'app/widgets/grid_filters_widget'
 
 end
