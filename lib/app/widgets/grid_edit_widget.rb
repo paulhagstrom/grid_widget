@@ -282,7 +282,6 @@ class GridEditWidget < Apotomo::Widget
   # #form_submitted will send a number of parameters in an options hash.
   # the return hash should include a :text key that holds the Javascript to render.
   # If the return hash includes a :display_form key, it will trigger :display_form with the value.
-  # This is the approved way of stuffing 
   # TODO: Document why that's useful
   def after_form_update(opts = {})
     reaction = opts[:reaction] || {}
@@ -296,13 +295,13 @@ class GridEditWidget < Apotomo::Widget
   
   # JS to pulse the background color of the form (signaling save)
   def form_pulse(color = '#88FF88')
-    render :view => 'form_pulse', :locals => {:form => "#{dom_id}_form", :color => color}
+    render :view => 'form_pulse.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
   # JS to change the background color of the form and slide it away.
   # The color is supposed to signal update (default, green) or cancel (e.g., '#FF8888' red).
   def form_deveal(color = '#88FF88')
-    render :view => 'form_deveal', :locals => {:form => "#{dom_id}_form", :color => color}
+    render :view => 'form_deveal.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
   # #delete_record catches the :delete_record event posted by the grid when the delete button is hit.
