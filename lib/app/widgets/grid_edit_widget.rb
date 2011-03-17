@@ -370,7 +370,7 @@ class GridEditWidget < Apotomo::Widget
   def set_record(id = nil, pid = nil)
     unless id.to_i > 0 && self.record = resource_model.includes(includes).find(id.to_i)
       self.record = resource_model.where((pid && where) ? where.call(pid) : {}).new
-      self.record.attributes(create_attributes)
+      self.record.attributes = create_attributes
     end
   end
   
