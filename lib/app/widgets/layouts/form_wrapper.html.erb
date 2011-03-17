@@ -2,7 +2,14 @@
 	<div style="display:inline-block;text-align:left;">
 		<div id="<%= container %>" class="popup_form" style="display:block;">
 			<%= yield :before_form %>
-			<%= form_tag rurl_for_event(:form_submitted), :remote => true do %>
+			<%
+				ufe_opts = multipart_form ? {:apotomo_iframe => true} : {}
+				html_opts = multipart_form ? {:multipart => true, :target => :apotomo_iframe} : {:remote => true}
+			%>
+			<% if multipart_form %>
+				<iframe id="apotomo_iframe" name="apotomo_iframe" style="display: none;"></iframe>
+			<% end %>
+			<%= form_tag rurl_for_event(:form_submitted, ufe_opts), html_opts do %>
 				<%= hidden_field_tag "id", record.id, :id => "#{container}_id" %>
 				<%= pid ? (hidden_field_tag "pid", pid, :id => "#{container}_pid") : '' %>
 				<%= yield %>

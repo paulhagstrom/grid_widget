@@ -55,6 +55,8 @@
 #   +where+ (attribute), define with lambda expecting parent id.
 #   Defaults to +nil+, meaning that the widget is independent.
 #
+# If you have a file upload field (and so need a multipart form), set +multipart_form+ to true.
+#
 # There are a few configuration methods that are defined for the purpose of building
 # up the column and filter models.  These are documented more fully by their own definitions.
 #
@@ -193,6 +195,7 @@ class GridEditWidget < Apotomo::Widget
   attr_accessor :includes
   attr_accessor :grid_options
   attr_accessor :form_template
+  attr_accessor :multipart_form
   attr_accessor :form_buttons
   attr_accessor :orphan_template
   attr_accessor :where
@@ -244,7 +247,7 @@ class GridEditWidget < Apotomo::Widget
   # form_content_options are sent to either update or render to fill in the form
   def form_content_options(pid = nil)
     {:view => form_template, :layout => 'form_wrapper',
-      :locals => {:container => "#{dom_id}_form", :record => record, :pid => pid}}
+      :locals => {:container => "#{dom_id}_form", :record => record, :pid => pid, :multipart_form => multipart_form}}
   end
     
   # #form_submitted catches the :form_submitted event from the form (defined in the form_wrapper layout).
@@ -387,6 +390,8 @@ class GridEditWidget < Apotomo::Widget
     self.grid_options = {}
     # Guesses that you will use the resource name for the form template.
     self.form_template = options[:resource]
+    # Assume that the form is not a multipart (uploader) form
+    self.multipart_form = false
     # The orphan template is used when a parent record is needed but not selected
     self.orphan_template = 'orphan'
     # Ensure that we always have a record of some sort
