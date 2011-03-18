@@ -215,6 +215,7 @@ class GridEditWidget < Apotomo::Widget
   
   after_add do |me, mom|
     me.respond_to_event :form_submitted, :from => me.name
+    me.respond_to_event :display_form, :from => me.name
   end
     
   def display
@@ -235,8 +236,8 @@ class GridEditWidget < Apotomo::Widget
     
   # #display_form catches the :display_form event that originates from the list #cell_click method.
   # #display_form can also be triggered by a form submission
-  # BUT RIGHT NOW THAT IS UNCAUGHT UNLESS THIS IS AN EMBEDDED WIDGET.  APPROPRIATE?  HANDLER INSTALLED IN embed_widget.
   # Emits the JS to populate and reveal the form.
+  # TODO: Might also be good to ensure that the correct row is selected in the table.
   def display_form(evt)
     set_record evt[:id], evt[:pid]
     render :text => update("##{dom_id}_form", form_content_options(evt[:pid])),
@@ -246,7 +247,7 @@ class GridEditWidget < Apotomo::Widget
 
   # form_content_options are sent to either update or render to fill in the form
   def form_content_options(pid = nil)
-    {:view => form_template, :layout => 'form_wrapper',
+    {:view => form_template, :layout => 'form_wrapper.html.erb',
       :locals => {:container => "#{dom_id}_form", :record => record, :pid => pid, :multipart_form => multipart_form}}
   end
     
@@ -282,7 +283,8 @@ class GridEditWidget < Apotomo::Widget
   # #form_submitted will send a number of parameters in an options hash.
   # the return hash should include a :text key that holds the Javascript to render.
   # If the return hash includes a :display_form key, it will trigger :display_form with the value.
-  # TODO: Document why that's useful
+  # This should be something like {:id => id, :pid => pid}, and will cause a redisplay of the form,
+  # which is useful if you added or selected a new form_only "parent" record.
   def after_form_update(opts = {})
     reaction = opts[:reaction] || {}
     if options[:form_only] || opts[:form_action] == 'remain'
@@ -360,12 +362,6 @@ class GridEditWidget < Apotomo::Widget
   def caption
     grid_options[:title] || options[:resource].pluralize.humanize
   end
-      
-  private
-  
-  def resource_model
-    Object.const_get options[:resource].classify
-  end
   
   # set_record sets the record object to that with the passed id.
   # If id is nil, record object is a new record, if parent id is set, it is passed to @where
@@ -375,7 +371,13 @@ class GridEditWidget < Apotomo::Widget
       self.record.attributes = create_attributes
     end
   end
+      
+  private
   
+  def resource_model
+    Object.const_get options[:resource].classify
+  end
+    
   # set_create defaults is a hook to stuff default values into newly created records
   def create_attributes
     {}
