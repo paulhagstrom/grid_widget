@@ -418,7 +418,6 @@ class GridEditWidget < Apotomo::Widget
       self << widget(:grid_list, @list_widget) do |lw|
         lw << widget(:grid_filters, @filters_widget)
       end
-      # self << (widget(:grid_list, @list_widget) << widget(:grid_filters, @filters_widget))
       self.form_buttons = [
         ['submit', 'Save+Close', 'Add+Close'],
         ['remain', 'Save', 'Add'],
