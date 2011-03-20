@@ -1,5 +1,23 @@
 /* css styles for the backend data */
 
+.flash {
+	width:100%;
+	border-spacing:1px;
+	border:0px;
+	margin:0px;
+	text-align:center;
+}
+.flash_alert {
+	background-color:#880000;
+	color:#FFFF00;
+}
+.flash_notice {
+	background-color:#00EE00;
+	color:#000000;
+}
+.flash_pulse {
+/*	padding: 3px; */
+}
 .page_identifier {
 	font-family: arial, verdana, sans-serif;
 	font-size:10pt;

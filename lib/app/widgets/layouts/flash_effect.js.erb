@@ -1,0 +1,12 @@
+var new_flash = $('#<%= flashid %>').clone().hide().css('background-color','#DDDDFF');
+$('#<%= flashid %>').attr('id', '<%= flashid %>_remove');
+$('#<%= flashid %>_remove').find('[id]').attr('id', function(){return this.id + '_remove';});
+new_flash.insertAfter('#<%= flashid %>_remove');
+<%= yield %>
+$('#<%= flashid %>').slideDown('fast');
+$('#<%= flashid %>_remove').slideUp('fast', function() { $(this).remove();});
+$('#<%= flashid %> .flash_pulse').css('background-color', function(index, value){
+	$(this).animate({backgroundColor: '#FFFF00'}, 100).animate({backgroundColor:value}, 1000);
+	return value;
+});
+$('#<%= flashid %> .flash_pulse').delay(1000).animate({backgroundColor:'#EEEEEE',color:'#888888'},1000);

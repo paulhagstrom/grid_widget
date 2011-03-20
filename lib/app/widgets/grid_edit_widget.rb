@@ -205,6 +205,7 @@ class GridEditWidget < Apotomo::Widget
   # These are consulted by the child widget
   attr_reader :list_widget
   attr_reader :filters_widget
+  attr_reader :flash_widget
   attr_reader :columns, :sortable_columns, :default_sort
   attr_reader :filters, :filter_sequence
   attr_reader :filter_default
@@ -259,6 +260,7 @@ class GridEditWidget < Apotomo::Widget
       set_record evt[:id], evt[:pid]
       was_new = record.new_record?
       record.update_attributes(attributes)
+      trigger :flash, :notice => update_message(was_new)
       reaction = after_form_update(:record => record, :was_new => was_new,
         :form_action => evt[:form_action], :special => special)
       trigger :display_form, reaction[:display_form] if reaction[:display_form]
@@ -267,6 +269,10 @@ class GridEditWidget < Apotomo::Widget
     else
       render :text => form_deveal('#FF8888') #cancel
     end
+  end
+  
+  def update_message(was_new = false)
+    was_new ? "Record added." : "Record updated."
   end
   
   # get_form_attributes pulls the record's attributes from the form, override if you need to
@@ -312,9 +318,17 @@ class GridEditWidget < Apotomo::Widget
   # TODO: Allow delete button from form?
   def delete_record(evt)
     set_record evt[:id]
-    record.destroy if record.id
+    if record.id
+      record.destroy
+      trigger :flash, :notice => delete_message
+    end
+    # record.destroy if record.id
     trigger :reload_grid
     render :text => form_deveal('#FF8888') #cancel
+  end
+  
+  def delete_message
+    "Record deleted."
   end
   
   # #inplace_edit catches the :inplace_edit event posted by the cell_click handler for editing in place.
@@ -332,13 +346,18 @@ class GridEditWidget < Apotomo::Widget
         f = c[:field]
         v = record.send(f)
         record.update_attributes({f => !v})
+        trigger :flash, :notice => inplace_message(c, !v)
       end
-      record.save
+      # record.save
       trigger :reload_grid
       render :text => form_deveal('#FF8888') #cancel
     else
       render :nothing => true
     end
+  end
+  
+  def inplace_message(col, new_value)
+    "#{col[:label]} toggled."
   end
   
   # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
@@ -405,6 +424,9 @@ class GridEditWidget < Apotomo::Widget
     @filters = {}
     @filter_sequence = []
     @filter_default = {}
+    
+    @flash_widget = options[:resource] + '_flash'
+    self << widget(:grid_flash, @flash_widget)
     
     if options[:form_only]
       @list_widget = nil

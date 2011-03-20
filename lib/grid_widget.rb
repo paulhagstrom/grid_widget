@@ -29,5 +29,6 @@ module GridWidget
   require 'app/widgets/grid_edit_widget'
   require 'app/widgets/grid_list_widget'
   require 'app/widgets/grid_filters_widget'
+  require 'app/widgets/grid_flash_widget'
 
 end
