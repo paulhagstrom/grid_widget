@@ -150,7 +150,7 @@ module GridWidget
       # Support for #grid_place
       # Return the Javascript columns model (with just the jQGrid options)
       def grid_columns
-        omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle]
+        omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle,:spokesfield]
         (controller.parent.columns.map {|c| (c.dup.delete_if{|k,v| omit_options.include?(k)}).to_json}).join(',')
       end
   

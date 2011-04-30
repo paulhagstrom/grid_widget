@@ -10,3 +10,5 @@ $('#<%= flashid %> .flash_pulse').css('background-color', function(index, value)
 	return value;
 });
 $('#<%= flashid %> .flash_pulse').delay(1000).animate({backgroundColor:'#EEEEEE',color:'#888888'},1000);
+// The following will remove the flash but if it is going to hold the undo link I may not want to.
+//$('#<%= flashid %> .flash_pulse').delay(4000).slideUp('fast');

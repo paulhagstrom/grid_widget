@@ -200,6 +200,8 @@ class GridEditWidget < Apotomo::Widget
   attr_accessor :orphan_template
   attr_accessor :where
   attr_accessor :record
+  attr_accessor :human_resource
+  attr_accessor :spokesfield
   # internal attributes not intended for configuration block
   # for columns and filters, use add_column, add_filter, add_filter_group (in ConfigMethods)
   # These are consulted by the child widget
@@ -216,11 +218,12 @@ class GridEditWidget < Apotomo::Widget
   
   after_add do |me, mom|
     me.respond_to_event :form_submitted, :from => me.name
+    me.respond_to_event :revert, :from => me.name
     me.respond_to_event :display_form, :from => me.name
   end
     
   def display
-    # for "form only" widget, we find this resource's record based on an id in the parent's record
+    # for a "form only" widget, we find this resource's record based on an id in the parent's record
     # TODO: This makes more db queries than necessary. Make form_only depend on record not id?
     if options[:form_only]
       set_record (parent.record.id.to_i > 0) ? options[:form_only].call(parent.record.id) : 0
@@ -260,19 +263,15 @@ class GridEditWidget < Apotomo::Widget
       set_record evt[:id], evt[:pid]
       was_new = record.new_record?
       record.update_attributes(attributes)
-      trigger :flash, :notice => update_message(was_new)
       reaction = after_form_update(:record => record, :was_new => was_new,
         :form_action => evt[:form_action], :special => special)
+      trigger :flash, :notice => reaction[:notice]
       trigger :display_form, reaction[:display_form] if reaction[:display_form]
       trigger :reload_grid
       render :text => reaction[:text]
     else
       render :text => form_deveal('#FF8888') #cancel
     end
-  end
-  
-  def update_message(was_new = false)
-    was_new ? "Record added." : "Record updated."
   end
   
   # get_form_attributes pulls the record's attributes from the form, override if you need to
@@ -298,20 +297,63 @@ class GridEditWidget < Apotomo::Widget
     else
       reaction[:text] = form_deveal
     end
+    reaction[:notice] ||= update_notice(opts[:record], opts[:was_new])
     reaction
   end
   
-  # JS to pulse the background color of the form (signaling save)
-  def form_pulse(color = '#88FF88')
-    render :view => 'form_pulse.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+  def update_message(record, was_new)
+    "#{record_name(record)} #{was_new ? 'added' : 'updated'}."
+  end
+  
+  def update_notice(record, was_new)
+    link = undo_update_link(record, 'Undo')
+    update_message(record, was_new) + (link ? " [#{link}]" : '')
+  end
+  
+  # Get the undo link (works only if paper_trail is involved and the model has a paper trail)
+  # This should be made private
+  def undo_update_link(record = nil, link_text = 'Undo')
+    if record.respond_to?(:versions)
+      view_context.link_to(link_text,
+        url_for_event(:revert, :id => record.versions.scoped.last.id), :method => :post, :remote => true)
+    else
+      nil
+    end
+  end
+  
+  # handle undo event triggered by the undo link (presumes paper_trail is in use)
+  def revert(evt)
+    @version = Version.find(evt[:id])
+    if @version.reify
+      @version.reify.save!
+    else
+      @version.item.destroy
+    end
+    is_redo = evt[:redo] == 'true'
+    trigger :flash, :notice => undo_notice(is_redo, @version)
+    trigger :reload_grid
+    render :nothing => true
   end
 
-  # JS to change the background color of the form and slide it away.
-  # The color is supposed to signal update (default, green) or cancel (e.g., '#FF8888' red).
-  def form_deveal(color = '#88FF88')
-    render :view => 'form_deveal.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+  # TODO: Consider adding a spokesman field so I can generally identify what record is changed.
+  # TODO: Any way to highlight the record that has been reverted?
+  def undo_message(is_redo, record)
+    "Last change #{is_redo ? 're' : 'un'}done for #{record_name(record)}."
   end
 
+  def undo_notice(is_redo, version)
+    link = undo_redo_link(version, is_redo, 'Undo', 'Redo')
+    undo_message(is_redo, version.next.reify) + (link ? " [#{link}]" : '')
+  end
+  
+  # undo_redo_link presumes we have a model with a paper trail, since that's how we got here.
+  # This should be made private
+  def undo_redo_link(version = nil, is_redo = false, undo_text = 'Undo', redo_text = 'Redo')
+    view_context.link_to(is_redo ? undo_text : redo_text,
+      url_for_event(:revert, :id => version.next.id, :redo => !is_redo),
+      :method => :post, :remote => true)
+  end
+  
   # #delete_record catches the :delete_record event posted by the grid when the delete button is hit.
   # Deletes the selected record, cancels the form, and posts :reload_grid to get the list to redraw.
   # def delete_record
@@ -320,17 +362,21 @@ class GridEditWidget < Apotomo::Widget
     set_record evt[:id]
     if record.id
       record.destroy
-      trigger :flash, :notice => delete_message
+      trigger :flash, :notice => delete_notice(record)
     end
-    # record.destroy if record.id
     trigger :reload_grid
     render :text => form_deveal('#FF8888') #cancel
   end
   
-  def delete_message
-    "Record deleted."
+  def delete_message(record)
+    "#{record_name(record)}} deleted."
   end
-  
+
+  def delete_notice(record)
+    link = undo_update_link(record, 'Undo')
+    delete_message(record) + (link ? " [#{link}]" : '')
+  end
+    
   # #inplace_edit catches the :inplace_edit event posted by the cell_click handler for editing in place.
   # At this point, it only handles toggling boolean values.
   # TODO: Allow for other editing in place.
@@ -346,7 +392,7 @@ class GridEditWidget < Apotomo::Widget
         f = c[:field]
         v = record.send(f)
         record.update_attributes({f => !v})
-        trigger :flash, :notice => inplace_message(c, !v)
+        trigger :flash, :notice => inplace_notice(c, !v, record)
       end
       # record.save
       trigger :reload_grid
@@ -356,10 +402,31 @@ class GridEditWidget < Apotomo::Widget
     end
   end
   
-  def inplace_message(col, new_value)
-    "#{col[:label]} toggled."
+  def inplace_message(col, new_value, record)
+    "#{col[:label]} #{new_value ? '' : 'un'}checked for #{record_name(record)}."
+  end
+
+  def inplace_notice(col, new_value, record)
+    link = undo_update_link(record, 'Undo')
+    inplace_message(col, new_value, record) + (link ? " [#{link}]" : '')
   end
   
+  # Name the record, defaults to using the spokesfield if there is one or ID
+  def record_name(record)
+    spokesfield ? record.send(spokesfield) : "#{human_resource} #{record.id}"
+  end
+  
+  # JS to pulse the background color of the form (signaling save)
+  def form_pulse(color = '#88FF88')
+    render :view => 'form_pulse.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+  end
+
+  # JS to change the background color of the form and slide it away.
+  # The color is supposed to signal update (default, green) or cancel (e.g., '#FF8888' red).
+  def form_deveal(color = '#88FF88')
+    render :view => 'form_deveal.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+  end
+
   # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
   # In the form, you would put, e.g., <%= render_widget :contact %> to specify the
   # place where the sub-widget will appear.
@@ -416,6 +483,10 @@ class GridEditWidget < Apotomo::Widget
     self.orphan_template = 'orphan'
     # Ensure that we always have a record of some sort
     self.record = resource_model.new
+    # Set the name of this resource for public display
+    self.human_resource = options[:resource].humanize
+    # Set the spokesfield to nil, this needs to be set explicitly
+    self.spokesfield = nil
     
     @columns = []
     @sortable_columns = {}

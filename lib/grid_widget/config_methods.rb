@@ -50,6 +50,9 @@ module GridWidget
         end
         @sortable_columns[opts[:index]] = @columns.size
       end
+      if opts[:spokesfield]
+        self.spokesfield = field
+      end
       @columns << opts
     end  
 
