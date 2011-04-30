@@ -1,7 +1,8 @@
 class GridFlashWidget < Apotomo::Widget
-    
+
+  # A :flash event will be posted by the parent (grid_edit) to be handled here.
   after_add do |me, mom|
-    mom.respond_to_event :flash, :on => me.name
+    mom.respond_to_event :flash, :on => self.name, :from => parent.name
   end
   
   # display
