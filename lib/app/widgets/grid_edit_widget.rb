@@ -270,6 +270,7 @@ class GridEditWidget < Apotomo::Widget
       trigger :reload_grid
       render :text => reaction[:text]
     else
+      trigger :flash_deveal
       render :text => form_deveal('#FF8888') #cancel
     end
   end

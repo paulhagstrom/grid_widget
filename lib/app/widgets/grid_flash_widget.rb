@@ -3,6 +3,7 @@ class GridFlashWidget < Apotomo::Widget
   # A :flash event will be posted by the parent (grid_edit) to be handled here.
   after_add do |me, mom|
     mom.respond_to_event :flash, :on => self.name, :from => parent.name
+    mom.respond_to_event :flash_deveal, :on => self.name, :from => parent.name
   end
   
   # display
@@ -10,7 +11,12 @@ class GridFlashWidget < Apotomo::Widget
     render :inline => '', :layout => 'flash_wrapper.html.erb'
   end
 
-  # flash updates the contents
+  # hide
+  def flash_deveal
+    render :view => 'flash_deveal.js.erb', :locals => {:flashid => "#{dom_id}_flash"}
+  end
+
+  # flash reveals and updates the contents of the flash box
   def flash(evt = nil)
     @notice = evt[:notice] rescue ''
     @alert = evt[:alert] rescue ''
