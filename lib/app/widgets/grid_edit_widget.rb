@@ -297,17 +297,17 @@ class GridEditWidget < Apotomo::Widget
     else
       reaction[:text] = form_deveal
     end
-    reaction[:notice] ||= update_notice(opts[:record], opts[:was_new])
+    reaction[:notice] ||= update_notice(opts[:record], opts[:was_new], opts[:record].previous_changes.size > 0)
     reaction
   end
   
-  def update_message(record, was_new)
-    "#{record_name(record)} #{was_new ? 'added' : 'updated'}."
+  def update_message(record, was_new, was_dirty)
+    "#{record_name(record)} #{was_dirty ? (was_new ? 'added' : 'updated') : 'unchanged'}."
   end
   
-  def update_notice(record, was_new)
-    link = undo_update_link(record, 'Undo')
-    update_message(record, was_new) + (link ? " [#{link}]" : '')
+  def update_notice(record, was_new, was_dirty)
+    link = was_dirty ? undo_update_link(record, 'Undo') : nil
+    update_message(record, was_new, was_dirty) + (link ? " [#{link}]" : '')
   end
   
   # Get the undo link (works only if paper_trail is involved and the model has a paper trail)
@@ -323,14 +323,14 @@ class GridEditWidget < Apotomo::Widget
   
   # handle undo event triggered by the undo link (presumes paper_trail is in use)
   def revert(evt)
-    @version = Version.find(evt[:id])
-    if @version.reify
-      @version.reify.save!
+    version = Version.find(evt[:id])
+    if version.reify
+      version.reify.save!
     else
-      @version.item.destroy
+      version.item.destroy
     end
     is_redo = evt[:redo] == 'true'
-    trigger :flash, :notice => undo_notice(is_redo, @version)
+    trigger :flash, :notice => undo_notice(is_redo, version)
     trigger :reload_grid
     render :nothing => true
   end
@@ -343,7 +343,7 @@ class GridEditWidget < Apotomo::Widget
 
   def undo_notice(is_redo, version)
     link = undo_redo_link(version, is_redo, 'Undo', 'Redo')
-    undo_message(is_redo, version.next.reify) + (link ? " [#{link}]" : '')
+    undo_message(is_redo, version.next.reify || version.next.item) + (link ? " [#{link}]" : '')
   end
   
   # undo_redo_link presumes we have a model with a paper trail, since that's how we got here.
@@ -369,7 +369,7 @@ class GridEditWidget < Apotomo::Widget
   end
   
   def delete_message(record)
-    "#{record_name(record)}} deleted."
+    "#{record_name(record)} deleted."
   end
 
   def delete_notice(record)
@@ -457,12 +457,13 @@ class GridEditWidget < Apotomo::Widget
       self.record.attributes = create_attributes
     end
   end
-      
-  private
-  
+
+  # resource_model is public because jqgrid_support calls it to determine whether to confirm deletes
   def resource_model
     Object.const_get options[:resource].classify
   end
+      
+  private
     
   # set_create defaults is a hook to stuff default values into newly created records
   def create_attributes

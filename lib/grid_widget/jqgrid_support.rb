@@ -190,10 +190,19 @@ module GridWidget
       def grid_wire_nav
         if controller.parent.grid_options[:del_button]
           del_function = <<-JS
-          function(id){
-            if (confirm('Delete: Are you sure?')) {
         			$.get('#{rurl_for_event(:delete_record)}', {'id':id}, null, 'script');
-            }
+          JS
+          # only do the delete confirmation if we don't have a paper trail on the model
+          unless controller.parent.resource_model.method_defined?(:versions)
+            del_function = <<-JS
+              if (confirm('Delete: Are you sure?')) {
+          			#{del_function}
+              }
+            JS
+          end
+          del_function = <<-JS
+          function(id){
+            #{del_function}
           }
           JS
         else
