@@ -3,11 +3,15 @@
 		<div id="<%= container %>" class="popup_form" style="display:block;">
 			<%= yield :before_form %>
 			<%
+				# the unique iframe id/name is necessary due, I think, to the fact that I
+				# slide the previous form out and the next form in, so they exist together
+				# briefly, leading something to get messed up in the DOM (in Safari, not in FF).
+				iframe_id = "#{container}_#{rand(1000).to_s}_iframe"
 				ufe_opts = multipart_form ? {:apotomo_iframe => true} : {}
-				html_opts = multipart_form ? {:multipart => true, :target => :apotomo_iframe} : {:remote => true}
+				html_opts = multipart_form ? {:multipart => true, :target => "#{iframe_id}"} : {:remote => true}
 			%>
 			<% if multipart_form %>
-				<iframe id="apotomo_iframe" name="apotomo_iframe" style="display: none;"></iframe>
+				<iframe id="<%= iframe_id %>" name="<%= iframe_id %>" style="display: none;"></iframe>
 			<% end %>
 			<%= form_tag rurl_for_event(:form_submitted, ufe_opts), html_opts do %>
 				<%= hidden_field_tag "id", record.id, :id => "#{container}_id" %>
