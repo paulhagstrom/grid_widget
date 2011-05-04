@@ -33,9 +33,10 @@ module GridWidget
       #
       # Using eval allows me to do fairly easy associations like 'record.person.first_name'
       # If the custom takes two parameters, the second one passed will be the record.
+      # If the virtual flag is set then it won't try to evaluate the field against the record.
       def grid_json_row(record)
         parent.columns.map {|c|
-          field_value = eval 'record.' + c[:field] rescue 'Unset'
+          field_value = c[:virtual] ? '' : (eval 'record.' + c[:field] rescue 'Unset')
           c[:custom] ?
             ((parent.method(c[:custom]).arity == 2) ?
               parent.send(c[:custom], field_value, record) :
@@ -150,7 +151,7 @@ module GridWidget
       # Support for #grid_place
       # Return the Javascript columns model (with just the jQGrid options)
       def grid_columns
-        omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle,:spokesfield]
+        omit_options = [:field,:custom,:open_panel,:inplace_edit,:toggle,:spokesfield,:virtual]
         (controller.parent.columns.map {|c| (c.dup.delete_if{|k,v| omit_options.include?(k)}).to_json}).join(',')
       end
   

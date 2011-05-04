@@ -11,6 +11,7 @@ module GridWidget
     # if not provided.  This is intended to be called as part of the configuration block of grid_edit_widget.
     #
     # * +field+ is evaluated (in Rails) to get the value (e.g., last_name, or person.last_name).
+    # * +virtual+ is set to true if the field does not actually exist in the model (use custom too).
     # * +name+ is a unique identifier used by the grid, defaults to +field+ with dots replaced by underscores.
     # * +sortable+ is true is a column is sortable, false otherwise.  A two-member array of strings can be
     #   provided instead, which will go directly into the order clause of the query (for ascending and
@@ -29,6 +30,7 @@ module GridWidget
       # grid options
       opts[:name] ||= field.sub('.', '_')
       opts[:sortable] = false unless opts.has_key?(:sortable)
+      opts[:virtual] = false unless opts.has_key?(:virtual)
       opts[:index] ||= opts[:name] if opts[:sortable]
       opts[:label] ||= opts[:name].humanize
       opts[:width] ||= 100
