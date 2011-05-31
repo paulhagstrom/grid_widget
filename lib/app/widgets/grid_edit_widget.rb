@@ -361,7 +361,7 @@ class GridEditWidget < Apotomo::Widget
   # TODO: Allow delete button from form?
   def delete_record(evt)
     set_record evt[:id]
-    if record.id
+    if record.id && before_delete_record(record)
       record.destroy
       trigger :flash, :notice => delete_notice(record)
     end
@@ -377,7 +377,13 @@ class GridEditWidget < Apotomo::Widget
     link = undo_update_link(record, 'Undo')
     delete_message(record) + (link ? " [#{link}]" : '')
   end
-    
+  
+  # Hook for deletion, override as necessary.
+  # Returning something that evaluates as false will abort the deletion
+  def before_delete_record(record)
+    true
+  end
+  
   # #inplace_edit catches the :inplace_edit event posted by the cell_click handler for editing in place.
   # At this point, it only handles toggling boolean values.
   # TODO: Allow for other editing in place.
