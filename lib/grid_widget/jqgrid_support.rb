@@ -124,7 +124,7 @@ module GridWidget
         		hiddengrid:#{controller.parent.grid_options[:hiddengrid] || false},
         		rowNum:#{controller.parent.grid_options[:rows] || 10},
         		height:#{controller.parent.grid_options[:height] || 400},
-        		//scrollrows:true,
+            scrollrows:true,
         		//altRows:true,
             //autowidth: true, 
             pager: '##{grid_dom_id + '_pager'}',
