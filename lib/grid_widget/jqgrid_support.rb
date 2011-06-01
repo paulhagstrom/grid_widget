@@ -90,6 +90,19 @@ module GridWidget
       def grid_get_pagination(evt)
         [evt[:page].to_i, evt[:rows].to_i]
       end
+      
+      # select a row on the grid
+      def grid_set_selection(selected = nil)
+        if selected
+          return <<-JS
+          jQuery('##{parent.dom_id}_grid').data('selected_id', #{selected});
+          JS
+        else
+          return <<-JS
+          jQuery('##{parent.dom_id}_grid').data('selected_id', 0);
+          JS
+        end
+      end
     end
 
     module HelperMethods
@@ -119,6 +132,14 @@ module GridWidget
             #{grid_wire_default_sort}
             #{grid_wire_set_pid}
         		viewrecords: true,
+        		gridComplete: function() {
+        		  $("##{grid_dom_id}").resetSelection();
+        		  var selid = $("##{grid_dom_id}").data('selected_id');
+        		  if (selid && selid > 0) {
+        		    $("##{grid_dom_id}").data('selected_id', 0);
+          		  $("##{grid_dom_id}").setSelection(selid, false);
+        		  }
+        		},
         		caption: '#{controller.parent.caption}'
         	});
         #{grid_wire_activate_titlebar}

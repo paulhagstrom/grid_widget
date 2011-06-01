@@ -267,7 +267,7 @@ class GridEditWidget < Apotomo::Widget
         :form_action => evt[:form_action], :special => special)
       trigger :flash, :notice => reaction[:notice]
       trigger :display_form, reaction[:display_form] if reaction[:display_form]
-      trigger :reload_grid
+      trigger :reload_grid, :selected => evt[:id]
       render :text => reaction[:text]
     else
       trigger :flash_deveal
@@ -402,7 +402,7 @@ class GridEditWidget < Apotomo::Widget
         trigger :flash, :notice => inplace_notice(c, !v, record)
       end
       # record.save
-      trigger :reload_grid
+      trigger :reload_grid, :selected => evt[:id]
       render :text => form_deveal('#FF8888') #cancel
     else
       render :nothing => true

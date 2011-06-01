@@ -44,8 +44,8 @@ class GridListWidget < Apotomo::Widget
   
   # reload the grid in response to :reload_grid event
   # relies on #grid_reload, which is defined in jqgrid_support
-  def reload_grid
-    render :text => grid_reload
+  def reload_grid(evt)
+    render :text => grid_reload + (evt[:selected] ? grid_set_selection(evt[:selected]) : '')
   end
 
   # respond to a cell click on the grid (:cell_click event)
