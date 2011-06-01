@@ -267,7 +267,7 @@ class GridEditWidget < Apotomo::Widget
         :form_action => evt[:form_action], :special => special)
       trigger :flash, :notice => reaction[:notice]
       trigger :display_form, reaction[:display_form] if reaction[:display_form]
-      trigger :reload_grid, :selected => evt[:id]
+      trigger :reload_grid
       render :text => reaction[:text]
     else
       trigger :flash_deveal
@@ -357,7 +357,6 @@ class GridEditWidget < Apotomo::Widget
   
   # #delete_record catches the :delete_record event posted by the grid when the delete button is hit.
   # Deletes the selected record, cancels the form, and posts :reload_grid to get the list to redraw.
-  # def delete_record
   # TODO: Allow delete button from form?
   def delete_record(evt)
     set_record evt[:id]
@@ -401,8 +400,7 @@ class GridEditWidget < Apotomo::Widget
         record.update_attributes({f => !v})
         trigger :flash, :notice => inplace_notice(c, !v, record)
       end
-      # record.save
-      trigger :reload_grid, :selected => evt[:id]
+      trigger :reload_grid
       render :text => form_deveal('#FF8888') #cancel
     else
       render :nothing => true

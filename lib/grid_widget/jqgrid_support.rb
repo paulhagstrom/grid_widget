@@ -136,7 +136,6 @@ module GridWidget
         		  $("##{grid_dom_id}").resetSelection();
         		  var selid = $("##{grid_dom_id}").data('selected_id');
         		  if (selid && selid > 0) {
-        		    $("##{grid_dom_id}").data('selected_id', 0);
           		  $("##{grid_dom_id}").setSelection(selid, false);
         		  }
         		},
