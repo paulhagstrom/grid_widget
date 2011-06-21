@@ -34,11 +34,15 @@ class GridListWidget < Apotomo::Widget
   # TODO: Can I make these a bit more chainable?
   # Magic: use_pagination sets some instance variables that grid_json uses.
   def fetch_data(evt)
+    # Use the filter to pull the ids first, intended: using just joins
     query = resource.scoped
-    query = query.includes(includes) if includes
-    query = use_sort(query, evt)
     query = use_filter(query, evt)
     query = query.where(where.call(evt[:pid])) if where && evt[:pid]
+    ids = query.select("#{resource.table_name}.id").all
+    # Then pull in the ids with their full includes
+    query = resource.where(["#{resource.table_name}.id IN (:ids)", {:ids => ids}])
+    query = query.includes(includes) if includes
+    query = use_sort(query, evt)
     render :text => grid_json(use_pagination(query, evt)).to_json
   end
   
@@ -147,6 +151,7 @@ class GridListWidget < Apotomo::Widget
   end
   
   # set the filtering based on event parameters
+  # added the ability to set includes in here, but better to use includes at the table level and joins in the filter
   def use_filter(query, evt)
     active_filters = parse_filters(evt)
     if active_filters && active_filters.size
@@ -154,10 +159,12 @@ class GridListWidget < Apotomo::Widget
         fg_options = filters[group][:options]
         query = query.where(fg_options[:where].call(filter_ids)) if fg_options.has_key?(:where) && filter_ids.size > 0
         query = query.joins(fg_options[:joins]) if fg_options.has_key?(:joins)
+        query = query.includes(fg_options[:includes]) if fg_options.has_key?(:includes)
         filter_ids.each do |f|
           f_options = filters[group][:filters][f]
           query = query.where(f_options[:where]) if f_options.has_key?(:where)
           query = query.joins(f_options[:joins]) if f_options.has_key?(:joins)
+          query = query.includes(f_options[:includes]) if f_options.has_key?(:includes)
         end
       end
     end
