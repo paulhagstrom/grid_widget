@@ -479,7 +479,7 @@ class GridEditWidget < Apotomo::Widget
   # options can include :resource and :form_only, both need to be known by this point.
   def setup(*)
     self.where = nil
-    self.dom_id = options[:resource]
+    self.dom_id = options[:dom_id]
     self.grid_options = {}
     # Guesses that you will use the resource name for the form template.
     self.form_template = options[:resource]
@@ -502,7 +502,7 @@ class GridEditWidget < Apotomo::Widget
     @filter_sequence = []
     @filter_default = {}
     
-    @flash_widget = options[:resource] + '_flash'
+    @flash_widget = self.dom_id + '_flash'
     self << widget(:grid_flash, @flash_widget)
     
     if options[:form_only]
@@ -512,8 +512,8 @@ class GridEditWidget < Apotomo::Widget
         ['remain', 'Save', 'Add'],
       ]
     else
-      @list_widget = options[:resource] + '_list'
-      @filters_widget = options[:resource] + '_filters'
+      @list_widget = self.dom_id + '_list'
+      @filters_widget = self.dom_id + '_filters'
       self << widget(:grid_list, @list_widget) do |lw|
         lw << widget(:grid_filters, @filters_widget)
       end
