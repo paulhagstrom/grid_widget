@@ -11,12 +11,14 @@ module GridWidget
     # the configuration options.
     # if this is going to be a form_only widget, the form_only option should be sent as an opt
     # If there are going to be multiple widgets with the same resources, :dom_id should be passed (will default to the resource)
+    # Updated for apotomo 1.2.
     def grid_edit_widget(resource, opts = {})
       opts[:resource] = resource
       opts[:widget_id] ||= resource
       opts[:dom_id] ||= opts[:widget_id]
-      w = widget(:grid_edit, opts[:widget_id], opts)
-      yield w if block_given?
+      w = widget(:grid_edit, opts[:widget_id], opts) do |wid|
+        yield wid if block_given?
+      end
       w
     end
     

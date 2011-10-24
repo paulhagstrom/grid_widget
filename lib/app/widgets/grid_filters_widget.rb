@@ -5,8 +5,9 @@ class GridFiltersWidget < Apotomo::Widget
   helper GridWidget::HelperMethods
   helper GridWidget::AppSupport::HelperMethods
     
-  after_add do |me, mom|
-    me.respond_to_event :set_filter, :from => me.name
+  # Updated for apotomo 1.2.
+  after_initialize do |me|
+      me.respond_to_event :set_filter, :from => me.name
   end
   
   # display and wire the filters.

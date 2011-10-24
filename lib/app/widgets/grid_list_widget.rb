@@ -9,17 +9,17 @@ class GridListWidget < Apotomo::Widget
   attr_reader :total_records
   attr_reader :current_page
 
-  # Broke in apotomo 1.2
-  after_add do |me, mom|
+  # Updated for apotomo 1.2 (changed to after_initialize from after_add)
+  after_initialize do |me|
     me.respond_to_event :fetch_data, :from => me.name
     me.respond_to_event :cell_click, :from => me.name
     me.respond_to_event :add_button, :from => me.name
     
-    mom.respond_to_event :reload_grid, :from => mom.name, :on => me.name
+    me.parent.respond_to_event :reload_grid, :from => me.parent.name, :on => me.name
     
-    mom.respond_to_event :display_form, :from => me.name
-    mom.respond_to_event :inplace_edit, :from => me.name
-    mom.respond_to_event :delete_record, :from => me.name
+    me.parent.respond_to_event :display_form, :from => me.name
+    me.parent.respond_to_event :inplace_edit, :from => me.name
+    me.parent.respond_to_event :delete_record, :from => me.name
   end
   
   # display and wire the list grid and filters.

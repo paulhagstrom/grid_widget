@@ -213,15 +213,9 @@ class GridEditWidget < Apotomo::Widget
   attr_reader :filter_default
   
   # because resource and form_only are used in the pre-configuration block setup
-  # they must be set as widget options
+  # they must be set as widget options.  Event responders are set up there are well.
   after_initialize :setup
-  
-  after_add do |me, mom|
-    me.respond_to_event :form_submitted, :from => me.name
-    me.respond_to_event :revert, :from => me.name
-    me.respond_to_event :display_form, :from => me.name
-  end
-    
+      
   def display
     # for a "form only" widget, we find this resource's record based on an id in the parent's record
     # TODO: This makes more db queries than necessary. Make form_only depend on record not id?
@@ -442,11 +436,12 @@ class GridEditWidget < Apotomo::Widget
   # The wiring here: if the child edit widget posts a reload_grid event, send it to our list.
   # If the child posts a display form, send it to ourselves.
   # TODO: Track this wiring to see if it is correct.
+  # Updated for compatibility with apotomo 1.2
   def embed_widget(where, wid)
-    self << wid
-    wid.where = where
-    respond_to_event :reload_grid, :from => wid.name, :with => :reload_grid, :on => list_widget
-    respond_to_event :display_form, :from => wid.name, :with => :display_form, :on => name
+    fwid = self << wid
+    fwid.where = where
+    respond_to_event :reload_grid, :from => fwid.name, :with => :reload_grid, :on => list_widget
+    respond_to_event :display_form, :from => fwid.name, :with => :display_form, :on => name
   end
       
   # This can be overridden if the caption needs to change dynamically
@@ -478,6 +473,11 @@ class GridEditWidget < Apotomo::Widget
   # Called by after_initialize, will set the defaults prior to executing the configuration block.
   # options can include :resource and :form_only, both need to be known by this point.
   def setup(*)
+    # Used to be in an after_add, updated for apotomo 1.2.
+    self.respond_to_event :form_submitted, :from => self.name
+    self.respond_to_event :revert, :from => self.name
+    self.respond_to_event :display_form, :from => self.name
+
     self.where = nil
     self.dom_id = options[:dom_id]
     self.grid_options = {}
@@ -517,6 +517,7 @@ class GridEditWidget < Apotomo::Widget
       self << widget(:grid_list, @list_widget) do |lw|
         lw << widget(:grid_filters, @filters_widget)
       end
+      
       self.form_buttons = [
         ['submit', 'Save+Close', 'Add+Close'],
         ['remain', 'Save', 'Add'],
