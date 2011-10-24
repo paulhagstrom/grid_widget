@@ -8,7 +8,8 @@ class GridListWidget < Apotomo::Widget
   attr_reader :total_pages
   attr_reader :total_records
   attr_reader :current_page
-    
+
+  # Broke in apotomo 1.2
   after_add do |me, mom|
     me.respond_to_event :fetch_data, :from => me.name
     me.respond_to_event :cell_click, :from => me.name
