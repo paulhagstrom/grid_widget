@@ -72,6 +72,8 @@ module GridWidget
     #
     # For the display, you can specify +:columns => n+, which is the number of columns the display table has.
     #
+    # You can send in :default => id of the filter in the group that should be active by default
+    #
     # Internally, :sequence is an array of the identifying keys of the filters within (in order)
     # and :filters has the individual filters' options
     def add_filter_group(id, opts = {}) # :yields: self
@@ -79,6 +81,7 @@ module GridWidget
       @current_filter_group = id
       @filters[id] = {:options => opts, :sequence => [], :filters => {}}
       @filter_sequence << id
+      @filter_default[id] = opts[:default].to_s if opts.has_key?(:default)
       yield self if block_given?
       self
     end
@@ -98,7 +101,7 @@ module GridWidget
       opts[:name] ||= id.humanize
       @filters[@current_filter_group][:filters][id.to_s] = opts
       @filters[@current_filter_group][:sequence] << id.to_s
-      @filter_default[@current_filter_group] = id if opts.has_key?(:default)
+      @filter_default[@current_filter_group] = id.to_s if opts.has_key?(:default)
     end
     
     # add a form button
