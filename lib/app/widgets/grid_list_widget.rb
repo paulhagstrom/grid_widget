@@ -88,7 +88,7 @@ class GridListWidget < Apotomo::Widget
     # if there was no prior filter group, start with the defaults.
     if passed_filters.size == 0 || evt[:filters][0] == '|'[0]
       filter_default.keys.each do |fg|
-        passed_filters.unshift [fg, filter_default[fg]]
+        passed_filters.unshift [fg, [filter_default[fg]]]
       end
     end
     # verify the filters, make delta changes
