@@ -15,6 +15,13 @@
 # to implement a grid.  First I will get it working, then I will consider renaming.
 
 module GridWidget
+
+  # converting from a vendor/plugin I will make this an engine
+  class Engine < Rails::Engine
+    # mimic the vendor/plugin behavior of autoloading the stuff in here (lib)
+    config.autoload_paths << File.expand_path("..", __FILE__)
+  end
+
   require 'grid_widget/app_support'
   require 'grid_widget/jqgrid_support'
   require 'grid_widget/controller_methods'

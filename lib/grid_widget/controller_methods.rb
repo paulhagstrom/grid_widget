@@ -37,11 +37,6 @@ module GridWidget
     #   self.respond_to_event :recordSelected, :from => widget.name, :with => :display_form, :on => self.name
     # end
 
-    # TODO add support for Boxes https://github.com/Orion98MC/Boxes
-    # def box_configure_form
-    #   @wopts = @options.clone
-    #   render
-    # end
   end
 
 end
