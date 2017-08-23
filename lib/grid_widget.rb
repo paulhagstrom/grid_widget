@@ -22,15 +22,20 @@ module GridWidget
     config.autoload_paths << File.expand_path("..", __FILE__)
   end
 
-  require 'grid_widget/app_support'
+  # the plugin used to autoload these, but now they must be explicitly loaded
+
+  # jqgrid support needs to be loaded before controller methods
   require 'grid_widget/jqgrid_support'
-  require 'grid_widget/controller_methods'
-  require 'grid_widget/helper_methods'
+
+  require 'grid_widget/app_support'
   require 'grid_widget/config_methods'
+  require 'grid_widget/controller_methods'
+  require 'grid_widget/custom_display_methods'
+  require 'grid_widget/helper_methods'
   
   module ControllerMethods
     # Include the plugin-internal paths, so that the views in lib/views are locatable.
-    Apotomo::Widget.append_view_path File.join(File.dirname(__FILE__), 'app', 'widgets')
+    Apotomo::Widget.append_view_path GridWidget::Engine.root + 'lib/app/widgets'
   end
   
   require 'app/widgets/grid_edit_widget'
