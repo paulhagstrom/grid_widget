@@ -318,7 +318,7 @@ class GridEditWidget < Apotomo::Widget
   
   # handle undo event triggered by the undo link (presumes paper_trail is in use)
   def revert(evt)
-    version = Version.find(evt[:id])
+    version = PaperTrail::Version.find(evt[:id])
     if version.reify
       version.reify.save!
     else
