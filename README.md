@@ -41,6 +41,11 @@ And then copy gridwidget.css into the stylesheets path as well.  That can be don
 
 rails generate grid_wiget:install 
 
+Dependency:
+
+I have not explicitly put this in the gemspec (yet), but there is a revert function that
+relies on the presence of paper_trail.
+
 
 Example
 =======
