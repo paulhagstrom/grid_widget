@@ -24,7 +24,7 @@
 		</tr>
 		<% end %>
 	</table>
-		<%= javascript_tag render :view => 'filters_setup.js' %>
+		<%= javascript_tag render :view => 'filters_setup', :formats => [:js] %>
 		<%= javascript_tag wiring %>
 		<%= javascript_tag render :state => :set_filter %>
 	<% end %>
