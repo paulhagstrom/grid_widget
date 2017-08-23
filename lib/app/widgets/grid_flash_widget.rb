@@ -9,19 +9,19 @@ class GridFlashWidget < Apotomo::Widget
   
   # display
   def display
-    render :inline => '', :layout => 'flash_wrapper.html.erb'
+    render :inline => '', :layout => 'flash_wrapper', :formats => [:html], :handlers => [:erb]
   end
 
   # hide
   def flash_deveal
-    render :view => 'flash_deveal.js.erb', :locals => {:flashid => "#{dom_id}_flash"}
+    render :view => 'flash_deveal', :formats => [:js], :handlers => [:erb], :locals => {:flashid => "#{dom_id}_flash"}
   end
 
   # flash reveals and updates the contents of the flash box
   def flash(evt = nil)
     @notice = evt[:notice] rescue ''
     @alert = evt[:alert] rescue ''
-    render :text => update("##{dom_id}_flash"), :layout => 'flash_effect.js.erb',
+    render :text => update("##{dom_id}_flash"), :layout => 'flash_effect', :handlers => [:erb], :formats => [:js],
       :locals => {:flashid => "#{dom_id}_flash"}
   end
   
