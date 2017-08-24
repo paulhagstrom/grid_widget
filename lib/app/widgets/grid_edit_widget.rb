@@ -239,13 +239,13 @@ class GridEditWidget < Apotomo::Widget
   def display_form(evt)
     set_record evt[:id], evt[:pid]
     render :text => update("##{dom_id}_form", form_content_options(evt[:pid])),
-      :layout => 'form_reveal.js.erb',
+      :layout => 'form_reveal', :formats => [:js], :handlers => [:erb],
       :locals => {:form_selector => "#{dom_id}_form"}
   end
 
   # form_content_options are sent to either update or render to fill in the form
   def form_content_options(pid = nil)
-    {:view => form_template, :layout => 'form_wrapper.html.erb',
+    {:view => form_template, :layout => 'form_wrapper', :formats => [:html], :handlers => [:erb],
       :locals => {:container => "#{dom_id}_form", :record => record, :pid => pid, :multipart_form => multipart_form}}
   end
     
