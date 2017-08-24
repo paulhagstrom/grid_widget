@@ -417,13 +417,15 @@ class GridEditWidget < Apotomo::Widget
   
   # JS to pulse the background color of the form (signaling save)
   def form_pulse(color = '#88FF88')
-    render :view => 'form_pulse.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+    render :view => 'form_pulse', :handlers => [:erb], :formats => [:js],
+        :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
   # JS to change the background color of the form and slide it away.
   # The color is supposed to signal update (default, green) or cancel (e.g., '#FF8888' red).
   def form_deveal(color = '#88FF88')
-    render :view => 'form_deveal.js.erb', :locals => {:form => "#{dom_id}_form", :color => color}
+    render :view => 'form_deveal', :handlers => [:erb], :formats => [:js],
+        :locals => {:form => "#{dom_id}_form", :color => color}
   end
 
   # #embed_widget is used to embed a subordinate grid_edit_widget into the form of this one.
