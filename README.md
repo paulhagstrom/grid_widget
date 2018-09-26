@@ -35,11 +35,11 @@ originally was 3.8
 
 jquery-ujs:
 rails.js
-originaly one that says it supports 1.4.3 and 1.4.4
+originally one that says it supports 1.4.3 and 1.4.4
 
 And then copy gridwidget.css into the stylesheets path as well.  That can be done with
 
-rails generate grid_wiget:install 
+rails generate grid_widget:install 
 
 Dependency:
 
